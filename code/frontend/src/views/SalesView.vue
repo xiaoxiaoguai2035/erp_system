@@ -239,7 +239,7 @@
             <el-input-number
               v-model="row.qty"
               :min="0"
-              :max="Math.min(Number(row.remainQty || 0), getOutStockAvailableQty(row))"
+              :max="getOutStockQtyLimit(row)"
               :precision="2"
               controls-position="right"
             />
@@ -247,7 +247,13 @@
         </el-table-column>
         <el-table-column label="批次号" min-width="150">
           <template #default="{ row }">
-            <el-select v-model="row.lotNo" clearable filterable placeholder="自动匹配或手动选择">
+            <el-select
+              v-model="row.lotNo"
+              clearable
+              filterable
+              placeholder="自动匹配或手动选择"
+              @change="handleOutStockLotChange($event, row)"
+            >
               <el-option
                 v-for="item in getOutStockLotOptions(row)"
                 :key="item.value"
@@ -520,13 +526,26 @@ const getOutStockAvailableQty = (item) => {
   return Number(outStockStockMap.value[key] || 0);
 };
 
+const getOutStockLotAvailableQty = (item) => {
+  if (!item.lotSelected) {
+    return 0;
+  }
+
+  const matched = getOutStockLotOptions(item).find((option) => option.value === item.lotNo);
+  return Number(matched?.availableQty || 0);
+};
+
+const getOutStockQtyLimit = (item) => {
+  const remainQty = Number(item.remainQty || 0);
+  const availableQty = item.lotSelected ? getOutStockLotAvailableQty(item) : getOutStockAvailableQty(item);
+  return Math.min(remainQty, availableQty);
+};
+
 const syncOutStockQtyByAvailableStock = () => {
   outStockForm.items = outStockForm.items.map((item) => {
-    const stockQty = getOutStockAvailableQty(item);
-    const nextQty = Math.min(Number(item.remainQty || 0), stockQty);
     return {
       ...item,
-      qty: nextQty
+      qty: getOutStockQtyLimit(item)
     };
   });
 };
@@ -549,23 +568,44 @@ const loadOutStockInventorySnapshot = async (warehouseId) => {
   for (const stock of stockPage.records || []) {
     const key = `${stock.materialId}::${warehouseId}`;
     const availableQty = Number(stock.availableQty ?? stock.qty ?? 0);
+    const lotNo = stock.lotNo || "";
     stockMap[key] = (stockMap[key] || 0) + availableQty;
     if (!lotMap[key]) {
-      lotMap[key] = [];
+      lotMap[key] = {};
     }
-    lotMap[key].push({
-      value: stock.lotNo || "",
-      label: stock.lotNo || "无批次",
-      availableQty
-    });
+
+    if (!lotMap[key][lotNo]) {
+      lotMap[key][lotNo] = {
+        value: lotNo,
+        label: lotNo || "无批次",
+        availableQty: 0
+      };
+    }
+    lotMap[key][lotNo].availableQty += availableQty;
   }
+
+  const normalizedLotMap = {};
+  for (const [key, lots] of Object.entries(lotMap)) {
+    normalizedLotMap[key] = Object.values(lots).map((item) => ({
+      ...item,
+      label: `${item.label}（可用 ${formatNumber(item.availableQty, "0")}）`
+    }));
+  }
+
   outStockStockMap.value = stockMap;
-  outStockLotMap.value = lotMap;
+  outStockLotMap.value = normalizedLotMap;
 };
 
 const getOutStockLotOptions = (item) => {
   const key = `${item.materialId}::${outStockForm.warehouseId || ""}`;
   return outStockLotMap.value[key] || [];
+};
+
+const handleOutStockLotChange = (value, row) => {
+  const matched = getOutStockLotOptions(row).find((option) => option.value === value);
+  row.lotSelected = Boolean(matched);
+  row.lotNo = matched ? matched.value : "";
+  row.qty = getOutStockQtyLimit(row);
 };
 
 const handleOutStockWarehouseChange = async (warehouseId) => {
@@ -574,7 +614,8 @@ const handleOutStockWarehouseChange = async (warehouseId) => {
     const lotOptions = getOutStockLotOptions(item);
     return {
       ...item,
-      lotNo: lotOptions.length === 1 ? lotOptions[0].value : ""
+      lotNo: lotOptions.length === 1 ? lotOptions[0].value : "",
+      lotSelected: lotOptions.length === 1
     };
   });
   syncOutStockQtyByAvailableStock();
@@ -952,7 +993,8 @@ const openOutStockDialog = async (id) => {
           materialName: item.materialName,
           remainQty,
           qty: remainQty,
-          lotNo: ""
+          lotNo: "",
+          lotSelected: false
         };
       })
       .filter((item) => item.remainQty > 0);
@@ -978,7 +1020,8 @@ const openOutStockDialog = async (id) => {
       const lotOptions = getOutStockLotOptions(item);
       return {
         ...item,
-        lotNo: lotOptions.length === 1 ? lotOptions[0].value : ""
+        lotNo: lotOptions.length === 1 ? lotOptions[0].value : "",
+        lotSelected: lotOptions.length === 1
       };
     });
     syncOutStockQtyByAvailableStock();
@@ -1010,7 +1053,11 @@ const submitOutStock = async () => {
       ElMessage.warning(`产品 ${item.materialName} 的出库数量不能超过剩余可发货数量`);
       return;
     }
-    if (qty > getOutStockAvailableQty(item)) {
+    if (item.lotSelected && qty > getOutStockLotAvailableQty(item)) {
+      ElMessage.warning(`产品 ${item.materialName} 的出库数量不能超过批次 ${item.lotNo || "无批次"} 的可用库存`);
+      return;
+    }
+    if (!item.lotSelected && qty > getOutStockAvailableQty(item)) {
       ElMessage.warning(`产品 ${item.materialName} 在所选仓库中的可用库存不足`);
       return;
     }
