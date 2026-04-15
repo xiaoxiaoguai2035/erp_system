@@ -3,6 +3,7 @@
     <section class="module-hero report-hero">
       <div>
         <h2>统计分析与经营洞察</h2>
+        <p>把趋势、排行、穿透分析和高亮结果拆成菜单入口，只展示当前想看的图形或结果。</p>
       </div>
       <div class="hero-kpis">
         <div class="hero-kpi actionable-kpi" v-for="item in heroCards" :key="item.title">
@@ -13,6 +14,23 @@
         </div>
       </div>
     </section>
+
+    <PagePanel title="分析菜单" description="按菜单切换图形、排行和穿透结果，减少页面噪音。">
+      <div class="panel-menu">
+        <button
+          v-for="item in reportSections"
+          :key="item.key"
+          type="button"
+          class="panel-menu-item"
+          :class="{ active: reportSection === item.key }"
+          @click="reportSection = item.key"
+        >
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+          <small>{{ item.hint }}</small>
+        </button>
+      </div>
+    </PagePanel>
 
     <PagePanel title="筛选与导出" description="报表接口支持按日期筛选，应收应付排行支持限制条数">
       <template #actions>
@@ -48,10 +66,11 @@
         </el-select>
         <div class="range-hint">
           <strong>{{ currentRangeLabel }}</strong>
+          <span>按客户、供应商、仓库和排行条数联动下方分析模块</span>
         </div>
       </div>
 
-      <div class="summary-grid">
+      <div v-show="reportSection === 'overview'" class="summary-grid">
         <div class="summary-card" v-for="item in insightCards" :key="item.label">
           <span>{{ item.label }}</span>
           <strong>{{ item.value }}</strong>
@@ -59,7 +78,7 @@
         </div>
       </div>
 
-      <div class="summary-grid">
+      <div v-show="reportSection === 'overview'" class="summary-grid">
         <div class="summary-card focus-card" v-for="item in anomalyCards" :key="item.label">
           <span>{{ item.label }}</span>
           <strong>{{ item.value }}</strong>
@@ -69,7 +88,7 @@
       </div>
     </PagePanel>
 
-    <div class="grid-2">
+    <div v-show="reportSection === 'charts'" class="grid-2">
       <PagePanel title="经营趋势" description="销售与采购金额按月份趋势汇总">
         <EChartPanel :option="trendOption" @chart-click="handleTrendChartClick" />
       </PagePanel>
@@ -79,7 +98,11 @@
       </PagePanel>
     </div>
 
-    <PagePanel title="联动高亮" description="图表点击、排行点击和穿透分析点击后，在这里汇总展示说明与来源明细">
+    <PagePanel
+      v-show="reportSection === 'highlight'"
+      title="联动高亮"
+      description="图表点击、排行点击和穿透分析点击后，在这里汇总展示说明与来源明细。"
+    >
       <template #actions>
         <el-button v-if="reportHighlight.actionRoute" text type="primary" @click="navigateTo(reportHighlight.actionRoute)">
           {{ reportHighlight.actionText || "查看来源页面" }}
@@ -116,7 +139,7 @@
       </div>
     </PagePanel>
 
-    <div class="grid-2">
+    <div v-show="reportSection === 'accounts'" class="grid-2">
       <PagePanel title="应收账款排行" description="可直接跳到来源销售订单详情">
         <el-table :data="filteredArSummary" stripe>
           <el-table-column prop="customer" label="客户" min-width="150" />
@@ -166,7 +189,7 @@
       </PagePanel>
     </div>
 
-    <div class="grid-2">
+    <div v-show="reportSection === 'drilldown'" class="grid-2">
       <PagePanel title="库存穿透分析" description="支持按仓库下钻低库存物料并跳到库存页">
         <template #actions>
           <el-button text type="primary" @click="navigateTo({ name: 'inventory', query: { tab: 'stocks' } })">查看库存余额</el-button>
@@ -232,7 +255,11 @@
       </PagePanel>
     </div>
 
-    <PagePanel title="多维经营聚焦" description="按客户、供应商、仓库聚焦当前最值得关注的对象">
+    <PagePanel
+      v-show="reportSection === 'focus'"
+      title="多维经营聚焦"
+      description="按客户、供应商、仓库聚焦当前最值得关注的对象。"
+    >
       <div class="summary-grid focus-grid">
         <div class="summary-card focus-card">
           <span>客户焦点</span>
@@ -293,6 +320,7 @@ const warehouseOptions = ref([]);
 const inventoryStocks = ref([]);
 const productionWorkOrders = ref([]);
 const reportHighlight = reactive(createEmptyHighlight());
+const reportSection = ref("overview");
 
 const rankingOptions = [5, 10, 15, 20];
 const filters = reactive({
@@ -504,6 +532,45 @@ const anomalyCards = computed(() => [
   }
 ]);
 
+const reportSections = computed(() => [
+  {
+    key: "overview",
+    label: "经营总览",
+    value: `${insightCards.value.length + anomalyCards.value.length} 张摘要`,
+    hint: "先看核心摘要和异常卡片"
+  },
+  {
+    key: "charts",
+    label: "趋势图形",
+    value: `${trendLabels.value.length || 0} 个月`,
+    hint: "切换趋势与风险图形查看变化"
+  },
+  {
+    key: "highlight",
+    label: "联动高亮",
+    value: `${reportHighlight.rows.length || reportHighlight.metrics.length || 0} 条结果`,
+    hint: "集中查看图表、排行和穿透后的说明"
+  },
+  {
+    key: "accounts",
+    label: "账款排行",
+    value: `${filteredArSummary.value.length + filteredApSummary.value.length} 条排行`,
+    hint: "查看应收和应付的主要对象"
+  },
+  {
+    key: "drilldown",
+    label: "穿透分析",
+    value: `${inventoryDrillRows.value.length + productionDrillRows.value.length} 条明细`,
+    hint: "查看库存与生产异常穿透结果"
+  },
+  {
+    key: "focus",
+    label: "多维聚焦",
+    value: "3 个对象",
+    hint: "按客户、供应商和仓库收束重点"
+  }
+]);
+
 const trendLabels = computed(() => {
   const salesLabels = salesSummary.value.monthLabels || [];
   const purchaseLabels = purchaseSummary.value.monthLabels || [];
@@ -535,9 +602,9 @@ const trendOption = computed(() => ({
       smooth: true,
       symbolSize: 8,
       data: alignSeries(trendLabels.value, salesSummary.value.monthLabels, salesSummary.value.series),
-      lineStyle: { width: 3, color: "#bc5c32" },
-      itemStyle: { color: "#bc5c32" },
-      areaStyle: { color: "rgba(188, 92, 50, 0.12)" }
+      lineStyle: { width: 3, color: "#4f46e5" },
+      itemStyle: { color: "#4f46e5" },
+      areaStyle: { color: "rgba(79, 70, 229, 0.14)" }
     },
     {
       name: "采购额",
@@ -545,8 +612,8 @@ const trendOption = computed(() => ({
       smooth: true,
       symbolSize: 8,
       data: alignSeries(trendLabels.value, purchaseSummary.value.monthLabels, purchaseSummary.value.series),
-      lineStyle: { width: 3, color: "#174c55" },
-      itemStyle: { color: "#174c55" }
+      lineStyle: { width: 3, color: "#0891b2" },
+      itemStyle: { color: "#0891b2" }
     }
   ]
 }));
@@ -574,7 +641,7 @@ const riskOption = computed(() => ({
         Number(purchaseSummary.value.pendingReceiveQty || 0)
       ],
       itemStyle: {
-        color: (params) => ["#d39c44", "#174c55", "#bc5c32", "#7a8e35", "#4f6980"][params.dataIndex],
+        color: (params) => ["#f59e0b", "#0f766e", "#4f46e5", "#2563eb", "#06b6d4"][params.dataIndex],
         borderRadius: [10, 10, 0, 0]
       }
     }
@@ -659,6 +726,7 @@ function resetFilters() {
   filters.customerId = undefined;
   filters.supplierId = undefined;
   filters.warehouseId = undefined;
+  reportSection.value = "overview";
   loadReports();
 }
 
@@ -667,6 +735,7 @@ function navigateTo(route) {
 }
 
 async function handleTrendChartClick(params) {
+  reportSection.value = "highlight";
   const range = resolveMonthRange(params?.name);
   if (!range) {
     return;
@@ -716,6 +785,7 @@ async function handleTrendChartClick(params) {
 }
 
 function handleRiskChartClick(params) {
+  reportSection.value = "highlight";
   const label = String(params?.name || "");
   if (label === "库存预警") {
     setReportHighlight({
@@ -837,6 +907,7 @@ function handleRiskChartClick(params) {
 }
 
 function applyAnomalyHighlight(key) {
+  reportSection.value = "highlight";
   if (key === "shipment") {
     handleRiskChartClick({ name: "待发货" });
     return;
@@ -941,6 +1012,7 @@ function syncDefaultHighlight() {
 }
 
 function highlightArRow(row) {
+  reportSection.value = "highlight";
   setReportHighlight({
     title: `客户 ${row.customer} 应收焦点`,
     description: "按单个客户高亮展示应收金额、订单数量和来源订单，适合答辩时点名说明。",
@@ -969,6 +1041,7 @@ function highlightArRow(row) {
 }
 
 function highlightApRow(row) {
+  reportSection.value = "highlight";
   setReportHighlight({
     title: `供应商 ${row.supplier} 应付焦点`,
     description: "按单个供应商高亮采购占款与来源订单，便于说明交付与资金压力。",
@@ -997,6 +1070,7 @@ function highlightApRow(row) {
 }
 
 function highlightInventoryRow(row) {
+  reportSection.value = "highlight";
   setReportHighlight({
     title: `${row.materialName} 库存预警`,
     description: "按单个低库存物料高亮展示缺口规模和仓库位置。",
@@ -1026,6 +1100,7 @@ function highlightInventoryRow(row) {
 }
 
 function highlightProductionRow(row) {
+  reportSection.value = "highlight";
   setReportHighlight({
     title: `${row.code} 生产风险高亮`,
     description: "按单张工单说明延期天数、进度和产品信息，便于直接展开生产闭环描述。",
@@ -1178,6 +1253,44 @@ small {
   color: var(--text-soft);
 }
 
+.panel-menu {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.panel-menu-item {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid rgba(191, 219, 254, 0.4);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(238, 242, 255, 0.88));
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.panel-menu-item:hover,
+.panel-menu-item.active {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.42);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.12);
+}
+
+.panel-menu-item span,
+.panel-menu-item small {
+  color: var(--text-soft);
+}
+
+.panel-menu-item strong {
+  font-size: 18px;
+}
+
 .report-filter-grid {
   grid-template-columns: minmax(0, 2fr) repeat(4, minmax(140px, 160px)) minmax(220px, 1fr);
   align-items: center;
@@ -1266,6 +1379,7 @@ small {
 }
 
 @media (max-width: 1280px) {
+  .panel-menu,
   .report-filter-grid,
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1273,6 +1387,7 @@ small {
 }
 
 @media (max-width: 960px) {
+  .panel-menu,
   .report-filter-grid,
   .summary-grid {
     grid-template-columns: 1fr;

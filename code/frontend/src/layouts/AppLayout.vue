@@ -2,10 +2,12 @@
   <div class="app-shell">
     <aside class="shell-sidebar" :class="{ collapsed: appStore.collapsed }">
       <div class="brand-panel">
-        <div class="brand-mark">ERP</div>
+        <div class="brand-mark">
+          <el-icon><OfficeBuilding /></el-icon>
+        </div>
         <div v-if="!appStore.collapsed" class="brand-copy">
-          <h1>制造企业中台</h1>
-          <p>Production Command Center</p>
+          <h1>Manufacturing<span>ERP</span></h1>
+          <p>Integrated Operations Workspace</p>
         </div>
       </div>
 
@@ -64,6 +66,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { ElMessage } from "element-plus";
+import { Fold, OfficeBuilding } from "@element-plus/icons-vue";
 
 import { fetchHealth } from "@/api/modules";
 import { navigationItems } from "@/config/navigation";

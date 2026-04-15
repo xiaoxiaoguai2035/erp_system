@@ -1,6 +1,46 @@
 <template>
   <div class="page-grid dashboard-grid" v-loading="loading">
-    <PagePanel title="经营筛选" description="首页看板统一联动销售、采购、库存和生产执行摘要">
+    <section class="workspace-hero dashboard-hero">
+      <div class="workspace-hero-copy">
+        <span class="hero-badge">经营工作台</span>
+        <h2>把经营面板整理成统一的菜单视图</h2>
+        <p>延续登录页的蓝白层次感，把趋势、风险、计划和资金关注拆成可切换模块，不再把图形和结果一次性堆满整个页面。</p>
+        <div class="hero-inline">
+          <span>{{ currentRangeLabel }}</span>
+          <span>工单焦点：{{ workOrderFocusLabel }}</span>
+        </div>
+      </div>
+
+      <div class="hero-stat-grid">
+        <article v-for="card in heroSummaryCards" :key="card.title" class="hero-stat-card" :class="card.tone">
+          <span>{{ card.title }}</span>
+          <strong>
+            {{ card.value }}
+            <small v-if="card.unit">{{ card.unit }}</small>
+          </strong>
+          <p>{{ card.trend }}</p>
+        </article>
+      </div>
+    </section>
+
+    <PagePanel title="面板菜单" description="按主题切换图形和结果，只保留当前需要看的内容。">
+      <div class="panel-menu">
+        <button
+          v-for="item in dashboardSections"
+          :key="item.key"
+          type="button"
+          class="panel-menu-item"
+          :class="{ active: dashboardSection === item.key }"
+          @click="dashboardSection = item.key"
+        >
+          <span>{{ item.label }}</span>
+          <strong>{{ item.value }}</strong>
+          <small>{{ item.hint }}</small>
+        </button>
+      </div>
+    </PagePanel>
+
+    <PagePanel title="经营筛选" description="首页看板统一联动销售、采购、库存和生产执行摘要。">
       <template #actions>
         <div class="toolbar-actions">
           <el-button @click="resetFilters">重置</el-button>
@@ -28,15 +68,20 @@
         </el-select>
         <div class="range-hint">
           <strong>{{ currentRangeLabel }}</strong>
+          <span>按区间汇总经营结果，并联动下方菜单内容</span>
         </div>
       </div>
     </PagePanel>
 
-    <section class="metric-grid dashboard-metric-grid">
+    <section v-show="dashboardSection === 'overview'" class="metric-grid dashboard-metric-grid">
       <MetricCard v-for="card in summaryCards" :key="card.title" v-bind="card" />
     </section>
 
-    <PagePanel title="异常指标焦点" description="补充采购兑现、销售交付和生产履约等答辩更容易讲清楚的异常指标">
+    <PagePanel
+      v-show="dashboardSection === 'overview'"
+      title="异常指标焦点"
+      description="补充采购兑现、销售交付和生产履约等更容易口径统一的异常指标。"
+    >
       <div class="summary-grid dashboard-insight-grid">
         <div class="summary-card" v-for="item in operationalAlerts" :key="item.label">
           <span>{{ item.label }}</span>
@@ -47,7 +92,7 @@
       </div>
     </PagePanel>
 
-    <div class="grid-2">
+    <div v-show="dashboardSection === 'trend'" class="grid-2">
       <PagePanel title="销售与采购趋势" description="汇总接口按月份返回趋势序列">
         <template #actions>
           <el-button text @click="goToReports">进入统计分析</el-button>
@@ -55,12 +100,35 @@
         <EChartPanel :option="trendOption" height="260px" @chart-click="handleTrendChartClick" />
       </PagePanel>
 
-      <PagePanel title="执行与风险总览" description="库存预警、在制工单、延期风险和待执行量集中展示">
-        <EChartPanel :option="riskOption" height="260px" @chart-click="handleRiskChartClick" />
+      <PagePanel title="趋势说明" description="点击图形后，联动结果会更新到下方说明区。">
+        <div class="trend-summary-card">
+          <strong>趋势图形</strong>
+          <p>销售与采购统一放在一个趋势入口里，先看波动，再用联动说明解释来源和影响。</p>
+        </div>
       </PagePanel>
     </div>
 
-    <PagePanel title="看板联动详情" description="点击趋势图、风险图后展示对应指标说明和来源明细">
+    <div v-show="dashboardSection === 'risk'" class="grid-2">
+      <PagePanel title="执行与风险总览" description="库存预警、在制工单、延期风险和待执行量集中展示">
+        <EChartPanel :option="riskOption" height="260px" @chart-click="handleRiskChartClick" />
+      </PagePanel>
+
+      <PagePanel title="风险导航" description="风险入口按库存与生产执行两条线收口。">
+        <div class="summary-grid dashboard-insight-grid compact-summary-grid">
+          <div class="summary-card" v-for="item in operationalAlerts" :key="item.label">
+            <span>{{ item.label }}</span>
+            <strong>{{ item.value }}</strong>
+            <small>{{ item.hint }}</small>
+          </div>
+        </div>
+      </PagePanel>
+    </div>
+
+    <PagePanel
+      v-show="['overview', 'trend', 'risk'].includes(dashboardSection)"
+      title="看板联动详情"
+      description="点击趋势图、风险图后展示对应指标说明和来源明细。"
+    >
       <template #actions>
         <el-button v-if="dashboardInsight.actionRoute" text type="primary" @click="navigateTo(dashboardInsight.actionRoute)">
           {{ dashboardInsight.actionText || "查看详情" }}
@@ -96,7 +164,7 @@
       </div>
     </PagePanel>
 
-    <div class="grid-2">
+    <div v-show="dashboardSection === 'risk'" class="grid-2">
       <PagePanel title="库存预警" description="按库存余额和安全库存比对，支持直接跳到库存页">
         <template #actions>
           <el-button text @click="goToInventory">查看库存余额</el-button>
@@ -147,7 +215,7 @@
       </PagePanel>
     </div>
 
-    <div class="grid-2">
+    <div v-show="dashboardSection === 'planning'" class="grid-2">
       <PagePanel title="生产计划链路" description="集中展示销售驱动计划和待下推工单计划">
         <template #actions>
           <el-button text @click="goToProduction">进入生产管理</el-button>
@@ -366,6 +434,7 @@ const reports = ref([]);
 const mrpResult = ref(null);
 const mrpLoading = ref(false);
 const dashboardInsight = reactive(createEmptyDashboardInsight());
+const dashboardSection = ref("overview");
 
 const filters = reactive({
   dateRange: [],
@@ -377,6 +446,19 @@ const currentRangeLabel = computed(() => {
     return "最近经营概览";
   }
   return `${filters.dateRange[0]} 至 ${filters.dateRange[1]}`;
+});
+
+const workOrderFocusLabel = computed(() => {
+  if (filters.workOrderFocus === "all") {
+    return "全部工单";
+  }
+  if (filters.workOrderFocus === "in_progress") {
+    return "执行中";
+  }
+  if (filters.workOrderFocus === "completed") {
+    return "已完工";
+  }
+  return "延期风险";
 });
 
 const summaryCards = computed(() => [
@@ -424,6 +506,8 @@ const summaryCards = computed(() => [
   }
 ]);
 
+const heroSummaryCards = computed(() => summaryCards.value.slice(0, 4));
+
 const trendLabels = computed(() => {
   const salesLabels = salesSummary.value.monthLabels || [];
   const purchaseLabels = purchaseSummary.value.monthLabels || [];
@@ -455,9 +539,9 @@ const trendOption = computed(() => ({
       smooth: true,
       symbolSize: 8,
       data: alignSeries(trendLabels.value, salesSummary.value.monthLabels, salesSummary.value.series),
-      lineStyle: { width: 4, color: "#bc5c32" },
-      itemStyle: { color: "#bc5c32" },
-      areaStyle: { color: "rgba(188, 92, 50, 0.12)" }
+      lineStyle: { width: 4, color: "#4f46e5" },
+      itemStyle: { color: "#4f46e5" },
+      areaStyle: { color: "rgba(79, 70, 229, 0.14)" }
     },
     {
       name: "采购额",
@@ -465,8 +549,8 @@ const trendOption = computed(() => ({
       smooth: true,
       symbolSize: 8,
       data: alignSeries(trendLabels.value, purchaseSummary.value.monthLabels, purchaseSummary.value.series),
-      lineStyle: { width: 3, color: "#174c55" },
-      itemStyle: { color: "#174c55" }
+      lineStyle: { width: 3, color: "#0891b2" },
+      itemStyle: { color: "#0891b2" }
     }
   ]
 }));
@@ -494,7 +578,7 @@ const riskOption = computed(() => ({
         Number(purchaseSummary.value.pendingReceiveQty || 0)
       ],
       itemStyle: {
-        color: (params) => ["#d39c44", "#174c55", "#bc5c32", "#7a8e35", "#4f6980"][params.dataIndex],
+        color: (params) => ["#f59e0b", "#0f766e", "#4f46e5", "#2563eb", "#06b6d4"][params.dataIndex],
         borderRadius: [10, 10, 0, 0]
       }
     }
@@ -650,6 +734,33 @@ const operationalAlerts = computed(() => [
   }
 ]);
 
+const dashboardSections = computed(() => [
+  {
+    key: "overview",
+    label: "经营概览",
+    value: `${summaryCards.value.length} 个指标`,
+    hint: "先看核心经营数据和异常提示"
+  },
+  {
+    key: "trend",
+    label: "趋势图形",
+    value: `${trendLabels.value.length || 0} 个月`,
+    hint: "查看销售与采购趋势变化"
+  },
+  {
+    key: "risk",
+    label: "风险联动",
+    value: `${warningRows.value.length + focusedWorkOrders.value.length} 条关注`,
+    hint: "聚焦库存预警和生产执行风险"
+  },
+  {
+    key: "planning",
+    label: "计划与资金",
+    value: `${pendingPlanRows.value.length + salesDrivenPlanRows.value.length} 条计划`,
+    hint: "查看计划链路、MRP 建议和近期资金关注"
+  }
+]);
+
 function createEmptyDashboardInsight() {
   return {
     title: "经营联动概览",
@@ -756,6 +867,7 @@ async function loadMrpSuggestions(planRows, workOrderRows) {
 function resetFilters() {
   filters.dateRange = [];
   filters.workOrderFocus = "delay";
+  dashboardSection.value = "overview";
   loadData();
 }
 
@@ -853,6 +965,7 @@ function syncDefaultDashboardInsight() {
 }
 
 function handleTrendChartClick(params) {
+  dashboardSection.value = "trend";
   const label = String(params?.name || "");
   const labels = trendLabels.value || [];
   const salesSeries = alignSeries(labels, salesSummary.value.monthLabels, salesSummary.value.series);
@@ -907,6 +1020,7 @@ function handleTrendChartClick(params) {
 }
 
 function handleRiskChartClick(params) {
+  dashboardSection.value = "risk";
   const label = String(params?.name || "");
 
   if (label === "库存预警") {
@@ -1013,6 +1127,7 @@ function handleRiskChartClick(params) {
 }
 
 function applyAlertInsight(key) {
+  dashboardSection.value = "risk";
   if (key === "delivery") {
     handleRiskChartClick({ name: "待到货" });
     return;
@@ -1121,6 +1236,142 @@ onMounted(loadData);
   gap: 16px;
 }
 
+.workspace-hero {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+  gap: 20px;
+  padding: 28px;
+  border-radius: 28px;
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 0.96), rgba(30, 41, 94, 0.94)),
+    radial-gradient(circle at top right, rgba(96, 165, 250, 0.16), transparent 30%);
+  box-shadow: 0 22px 48px rgba(30, 41, 94, 0.22);
+  color: #ffffff;
+}
+
+.workspace-hero-copy {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(96, 165, 250, 0.16);
+  color: #dbeafe;
+  font-size: 13px;
+}
+
+.workspace-hero-copy h2,
+.workspace-hero-copy p {
+  margin: 0;
+}
+
+.workspace-hero-copy h2 {
+  font-size: 34px;
+  line-height: 1.25;
+}
+
+.workspace-hero-copy p {
+  color: rgba(224, 231, 255, 0.82);
+  line-height: 1.8;
+}
+
+.hero-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hero-inline span {
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #dbeafe;
+  font-size: 13px;
+}
+
+.hero-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.hero-stat-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(191, 219, 254, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.hero-stat-card span,
+.hero-stat-card p {
+  color: rgba(224, 231, 255, 0.82);
+}
+
+.hero-stat-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 24px;
+}
+
+.hero-stat-card small {
+  margin-left: 6px;
+  font-size: 15px;
+  opacity: 0.78;
+}
+
+.hero-stat-card p {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.panel-menu {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.panel-menu-item {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid rgba(191, 219, 254, 0.4);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(238, 242, 255, 0.88));
+  color: var(--text-main);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.panel-menu-item:hover,
+.panel-menu-item.active {
+  transform: translateY(-1px);
+  border-color: rgba(99, 102, 241, 0.42);
+  box-shadow: 0 14px 30px rgba(79, 70, 229, 0.12);
+}
+
+.panel-menu-item span,
+.panel-menu-item small {
+  color: var(--text-soft);
+}
+
+.panel-menu-item strong {
+  font-size: 18px;
+}
+
 .dashboard-metric-grid {
   gap: 16px;
 }
@@ -1147,6 +1398,26 @@ onMounted(loadData);
 .stack-panel {
   display: grid;
   gap: 16px;
+}
+
+.trend-summary-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px 20px;
+  min-height: 100%;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(238, 242, 255, 0.92), rgba(248, 250, 252, 0.92));
+  border: 1px solid rgba(191, 219, 254, 0.38);
+}
+
+.trend-summary-card strong,
+.trend-summary-card p {
+  margin: 0;
+}
+
+.trend-summary-card p {
+  color: var(--text-soft);
+  line-height: 1.8;
 }
 
 .mini-section {
@@ -1230,6 +1501,10 @@ onMounted(loadData);
   gap: 14px;
 }
 
+.compact-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .dashboard-insight-grid {
   margin-top: 4px;
 }
@@ -1252,10 +1527,21 @@ onMounted(loadData);
   font-size: 22px;
 }
 
+.summary-card em {
+  margin-left: 6px;
+  color: var(--text-soft);
+  font-style: normal;
+  font-size: 14px;
+}
+
 .summary-card :deep(.el-button) {
   justify-self: flex-start;
   margin-top: 6px;
   padding-left: 0;
+}
+
+.summary-card.actionable-card {
+  display: grid;
 }
 
 .dashboard-grid :deep(.panel-body) {
@@ -1290,6 +1576,8 @@ onMounted(loadData);
 }
 
 @media (max-width: 1280px) {
+  .workspace-hero,
+  .panel-menu,
   .dashboard-filter-grid,
   .summary-grid,
   .capital-grid,
@@ -1297,8 +1585,26 @@ onMounted(loadData);
     grid-template-columns: 1fr;
   }
 
+  .hero-stat-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
   .dashboard-grid :deep(.el-table .cell) {
     white-space: normal;
+  }
+}
+
+@media (max-width: 720px) {
+  .workspace-hero {
+    padding: 22px;
+  }
+
+  .workspace-hero-copy h2 {
+    font-size: 28px;
+  }
+
+  .hero-stat-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

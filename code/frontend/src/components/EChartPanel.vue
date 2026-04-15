@@ -20,27 +20,51 @@ const props = defineProps({
 
 const chartRef = ref(null);
 let instance = null;
+let resizeObserver = null;
 
-const renderChart = async () => {
-  await nextTick();
-  if (!chartRef.value) return;
+const ensureInstance = () => {
+  if (!chartRef.value) {
+    return null;
+  }
 
   if (!instance) {
     instance = echarts.init(chartRef.value);
   }
 
-  instance.off("click");
-  instance.on("click", (params) => {
+  return instance;
+};
+
+const renderChart = async () => {
+  await nextTick();
+  if (!chartRef.value) {
+    return;
+  }
+
+  // Defer rendering until the host has a real size. This avoids charts being
+  // initialized inside hidden menu panels with a zero-width canvas.
+  if (!chartRef.value.clientWidth || !chartRef.value.clientHeight) {
+    return;
+  }
+
+  const chart = ensureInstance();
+  if (!chart) {
+    return;
+  }
+
+  chart.off("click");
+  chart.on("click", (params) => {
     emit("chart-click", params);
   });
-  instance.setOption(props.option, true);
-  instance.resize();
+  chart.setOption(props.option, true);
+  chart.resize();
 };
 
 const handleResize = () => {
-  if (instance) {
-    instance.resize();
+  if (!chartRef.value?.clientWidth || !chartRef.value?.clientHeight) {
+    return;
   }
+
+  renderChart();
 };
 
 watch(
@@ -53,11 +77,23 @@ watch(
 
 onMounted(() => {
   renderChart();
+
+  if (typeof ResizeObserver !== "undefined" && chartRef.value) {
+    resizeObserver = new ResizeObserver(() => {
+      handleResize();
+    });
+    resizeObserver.observe(chartRef.value);
+  }
+
   window.addEventListener("resize", handleResize);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener("resize", handleResize);
+  if (resizeObserver) {
+    resizeObserver.disconnect();
+    resizeObserver = null;
+  }
   if (instance) {
     instance.dispose();
     instance = null;
