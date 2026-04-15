@@ -51,36 +51,51 @@
           </div>
 
           <div v-loading="planLoading">
-            <el-table :data="planRows" stripe row-key="id" @selection-change="handlePlanSelectionChange">
+            <el-table class="production-table" :data="planRows" stripe row-key="id" @selection-change="handlePlanSelectionChange">
               <el-table-column type="selection" width="52" :selectable="planSelectable" />
-              <el-table-column prop="code" label="计划单号" min-width="150" />
-              <el-table-column prop="materialCode" label="产品编码" min-width="120" />
-              <el-table-column prop="materialName" label="产品名称" min-width="160" />
-              <el-table-column label="计划数量" min-width="110">
-                <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
-              </el-table-column>
-              <el-table-column label="开始日期" min-width="110">
-                <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
-              </el-table-column>
-              <el-table-column label="结束日期" min-width="110">
-                <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
-              </el-table-column>
-              <el-table-column label="状态" min-width="100">
+              <el-table-column label="计划信息" min-width="170" align="center">
                 <template #default="{ row }">
-                  <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
+                  <div class="cell-primary">
+                    <strong class="cell-code">{{ row.code }}</strong>
+                  </div>
                 </template>
               </el-table-column>
-              <el-table-column label="来源销售单" min-width="120">
+              <el-table-column label="产品详情" min-width="170" align="center">
                 <template #default="{ row }">
-                  <el-button v-if="row.sourceSalesId" text type="primary" @click="openSourceSalesOrder(row.sourceSalesId)">
-                    #{{ row.sourceSalesId }}
-                  </el-button>
+                  <div class="cell-primary">
+                    <strong>{{ row.materialName }}</strong>
+                    <span class="cell-secondary">{{ row.materialCode }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="数量" min-width="96" align="center">
+                <template #default="{ row }">
+                  <span class="cell-value">{{ formatNumber(row.planQty) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="生产周期" min-width="150" align="center">
+                <template #default="{ row }">
+                  <div class="period-card">
+                    <span>{{ formatDate(row.startDate) }}</span>
+                    <span class="date-arrow">至</span>
+                    <span>{{ formatDate(row.endDate) }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" min-width="92" align="center">
+                <template #default="{ row }">
+                  <span class="table-tag" :class="getProductionStatusClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="来源销售单" min-width="96" align="center">
+                <template #default="{ row }">
+                  <span v-if="row.sourceSalesId" class="source-pill" @click="openSourceSalesOrder(row.sourceSalesId)">#{{ row.sourceSalesId }}</span>
                   <span v-else>--</span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" min-width="260" fixed="right">
+              <el-table-column label="操作" min-width="176" align="center" class-name="action-cell">
                 <template #default="{ row }">
-                  <div class="table-actions">
+                  <div class="action-links">
                     <el-button text @click="openPlanDetailDrawer(row.id)">详情</el-button>
                     <el-button text :disabled="!canEditPlan(row)" @click="openEditPlanDialog(row.id)">编辑</el-button>
                     <el-button text type="success" :disabled="!canApprovePlan(row)" @click="approvePlan(row.id)">审核</el-button>
@@ -110,6 +125,9 @@
             <el-button :disabled="!mrpResult" @click="clearMrpResult">清空结果</el-button>
             <el-button type="primary" plain :disabled="!selectedPurchaseSuggestionIds.length" @click="generatePurchaseDocs">
               生成采购建议
+            </el-button>
+            <el-button plain :disabled="!latestGeneratedPurchaseDocId" @click="openGeneratedPurchaseDoc">
+              查看采购申请
             </el-button>
             <el-button type="primary" :disabled="!selectedWorkOrderSuggestionIds.length" @click="generateWorkOrderDocs">
               生成工单
@@ -215,33 +233,48 @@
           </div>
 
           <div v-loading="workOrderLoading">
-            <el-table :data="workOrderRows" stripe>
-              <el-table-column prop="code" label="工单号" min-width="150" />
-              <el-table-column label="来源计划" min-width="100">
-                <template #default="{ row }">#{{ row.planId }}</template>
-              </el-table-column>
-              <el-table-column prop="materialCode" label="产品编码" min-width="120" />
-              <el-table-column prop="materialName" label="产品名称" min-width="160" />
-              <el-table-column label="计划数量" min-width="110">
-                <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
-              </el-table-column>
-              <el-table-column label="已完工" min-width="110">
-                <template #default="{ row }">{{ formatNumber(row.finishedQty) }}</template>
-              </el-table-column>
-              <el-table-column label="状态" min-width="100">
+            <el-table class="production-table" :data="workOrderRows" stripe>
+              <el-table-column label="工单信息" min-width="170" align="center">
                 <template #default="{ row }">
-                  <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
+                  <div class="cell-primary">
+                    <strong class="cell-code">{{ row.code }}</strong>
+                    <span class="cell-secondary">计划 #{{ row.planId }}</span>
+                  </div>
                 </template>
               </el-table-column>
-              <el-table-column label="开工日期" min-width="110">
-                <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
-              </el-table-column>
-              <el-table-column label="完工日期" min-width="110">
-                <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
-              </el-table-column>
-              <el-table-column label="操作" min-width="520" fixed="right">
+              <el-table-column label="产品详情" min-width="170" align="center">
                 <template #default="{ row }">
-                  <div class="table-actions">
+                  <div class="cell-primary">
+                    <strong>{{ row.materialName }}</strong>
+                    <span class="cell-secondary">{{ row.materialCode }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="数量" min-width="120" align="center">
+                <template #default="{ row }">
+                  <div class="qty-stack">
+                    <span><em>计划</em>{{ formatNumber(row.planQty) }}</span>
+                    <span><em>完工</em>{{ formatNumber(row.finishedQty) }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" min-width="92" align="center">
+                <template #default="{ row }">
+                  <span class="table-tag" :class="getProductionStatusClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="生产周期" min-width="150" align="center">
+                <template #default="{ row }">
+                  <div class="period-card">
+                    <span>{{ formatDate(row.startDate) }}</span>
+                    <span class="date-arrow">至</span>
+                    <span>{{ formatDate(row.endDate) }}</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="220" align="center" class-name="action-cell">
+                <template #default="{ row }">
+                  <div class="action-links multi">
                     <el-button text @click="openWorkOrderDetailDrawer(row.id)">详情</el-button>
                     <el-button text :disabled="!canEditWorkOrder(row)" @click="openEditWorkOrderDialog(row.id)">编辑</el-button>
                     <el-button text type="success" :disabled="!canApproveWorkOrder(row)" @click="approveWorkOrder(row.id)">审核</el-button>
@@ -808,6 +841,7 @@ const mrpResult = ref(null);
 const selectedPlanIds = ref([]);
 const selectedPurchaseSuggestionIds = ref([]);
 const selectedWorkOrderSuggestionIds = ref([]);
+const latestGeneratedPurchaseDocId = ref(null);
 
 const planDetailVisible = ref(false);
 const planDetailRecord = ref(null);
@@ -1067,6 +1101,23 @@ function canExecuteWorkOrder(row) {
   return ["approved", "in_progress"].includes(normalizeStatus(row.status));
 }
 
+function getProductionStatusClass(status) {
+  const normalized = normalizeStatus(status);
+  if (normalized === "completed") {
+    return "status-completed";
+  }
+  if (normalized === "in_progress") {
+    return "status-running";
+  }
+  if (normalized === "closed") {
+    return "status-closed";
+  }
+  if (normalized === "approved") {
+    return "status-approved";
+  }
+  return "status-draft";
+}
+
 function openSourceSalesOrder(sourceSalesId) {
   router.push({
     name: "sales",
@@ -1144,7 +1195,22 @@ async function loadPlans() {
       pageSize: planPagination.pageSize
     });
 
-    planRows.value = pageData.records || [];
+    const rows = pageData.records || [];
+    const statusRank = {
+      draft: 1,
+      approved: 2,
+      in_progress: 3,
+      completed: 8,
+      closed: 9
+    };
+    planRows.value = [...rows].sort((left, right) => {
+      const leftRank = statusRank[normalizeStatus(left.status)] ?? 5;
+      const rightRank = statusRank[normalizeStatus(right.status)] ?? 5;
+      if (leftRank !== rightRank) {
+        return leftRank - rightRank;
+      }
+      return Number(new Date(right.startDate || 0)) - Number(new Date(left.startDate || 0));
+    });
     planPagination.total = pageData.total || 0;
   } catch (error) {
     ElMessage.error(error.message || "生产计划加载失败");
@@ -1325,6 +1391,19 @@ function clearMrpResult() {
   selectedWorkOrderSuggestionIds.value = [];
 }
 
+function openGeneratedPurchaseDoc() {
+  if (!latestGeneratedPurchaseDocId.value) {
+    return;
+  }
+  router.push({
+    name: "purchase",
+    query: {
+      tab: "requests",
+      detailId: String(latestGeneratedPurchaseDocId.value)
+    }
+  });
+}
+
 async function recalculateMrpSelection(silent = false) {
   if (!selectedPlanIds.value.length) {
     clearMrpResult();
@@ -1376,6 +1455,7 @@ async function generatePurchaseDocs() {
       taskKey: mrpResult.value.taskKey,
       selectedItems: selectedPurchaseSuggestionIds.value
     });
+    latestGeneratedPurchaseDocId.value = ids?.[0] || null;
     ElMessage.success(`已生成采购申请：${(ids || []).join(", ")}`);
     await Promise.all([loadPlans(), loadWorkOrders(), refreshDynamicOptions()]);
     await recalculateMrpSelection(true);
@@ -2020,6 +2100,138 @@ watch(
   min-width: 0;
 }
 
+.production-tabs :deep(.el-table) {
+  font-size: 13px;
+}
+
+.production-tabs :deep(.el-table td),
+.production-tabs :deep(.el-table th) {
+  padding: 6px 0;
+}
+
+.production-table :deep(.el-table__row) {
+  transition: background-color 0.18s ease;
+}
+
+.cell-primary {
+  display: grid;
+  gap: 4px;
+}
+
+.cell-primary strong {
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.cell-code {
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.4;
+  word-break: break-all;
+  color: var(--text-main);
+}
+
+.cell-secondary {
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.cell-value {
+  color: var(--text-main);
+  font-weight: 600;
+}
+
+.qty-stack {
+  display: grid;
+  gap: 4px;
+  color: var(--text-main);
+  font-size: 13px;
+}
+
+.qty-stack em {
+  margin-right: 6px;
+  color: var(--text-soft);
+  font-style: normal;
+}
+
+.period-card {
+  display: inline-grid;
+  justify-items: center;
+  gap: 4px;
+  min-width: 96px;
+  color: var(--text-soft);
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.date-arrow {
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 12px;
+}
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.action-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 10px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.action-links.multi {
+  max-width: 220px;
+}
+
+.production-tabs :deep(.el-table__row:hover .action-links) {
+  opacity: 1;
+}
+
+.action-links :deep(.el-button) {
+  min-height: auto;
+  padding: 0;
+  font-size: 13px;
+}
+
+.status-running {
+  background: rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+}
+
+.status-completed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #059669;
+}
+
+.status-closed {
+  background: rgba(148, 163, 184, 0.14);
+  color: #64748b;
+}
+
+.status-approved {
+  background: rgba(99, 102, 241, 0.1);
+  color: #4f46e5;
+}
+
+.status-draft {
+  background: rgba(148, 163, 184, 0.12);
+  color: #64748b;
+}
+
 .field-stack {
   display: grid;
   gap: 8px;
@@ -2131,6 +2343,14 @@ watch(
   .production-tab-actions {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .action-links {
+    opacity: 1;
+  }
+
+  .action-links.multi {
+    gap: 6px 10px;
   }
 }
 </style>

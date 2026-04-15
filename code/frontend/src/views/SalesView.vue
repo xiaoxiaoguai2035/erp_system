@@ -700,7 +700,7 @@ const canEditDoc = (row) => normalizeStatus(row.status) === "draft";
 const canApproveDoc = (row) => normalizeStatus(row.status) === "draft";
 const canCloseDoc = (row) => ["approved", "partial", "completed"].includes(normalizeStatus(row.status));
 const canConvertQuote = (row) => normalizeStatus(row.status) === "approved";
-const canCreatePlan = (row) => ["approved", "partial", "completed"].includes(normalizeStatus(row.status));
+const canCreatePlan = (row) => ["approved", "partial"].includes(normalizeStatus(row.status));
 
 const validateForm = () => {
   if (!formModel.customerId || !formModel.docDate) {

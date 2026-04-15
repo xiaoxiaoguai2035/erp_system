@@ -40,19 +40,20 @@
       </template>
 
       <div class="floating-filter-bar">
-        <el-popover placement="bottom-start" trigger="click" :width="420">
-          <div class="filter-popover-body">
+        <el-popover v-model:visible="generalFilterOpen" placement="bottom-start" trigger="click" :width="420">
+          <div class="filter-popover-body" @click.stop>
             <el-date-picker
               class="report-date-picker-inline"
               v-model="filters.dateRange"
               type="daterange"
+              :teleported="false"
               unlink-panels
               clearable
               value-format="YYYY-MM-DD"
               range-separator="至"
               start-placeholder="开始日期"
               end-placeholder="结束日期"
-              @change="handleFilterChange"
+              @change="handleGeneralDateChange"
             />
             <el-select v-model="filters.rankingLimit" placeholder="排行条数" @change="handleFilterChange">
               <el-option v-for="item in rankingOptions" :key="item" :label="`前 ${item} 条`" :value="item" />
@@ -368,6 +369,7 @@ const inventoryStocks = ref([]);
 const productionWorkOrders = ref([]);
 const reportHighlight = reactive(createEmptyHighlight());
 const reportSection = ref("overview");
+const generalFilterOpen = ref(false);
 
 const rankingOptions = [5, 10, 15, 20];
 const DEFAULT_REPORT_FILTERS = {
@@ -833,6 +835,11 @@ function resetFilters() {
 
 function handleFilterChange() {
   loadReports();
+}
+
+function handleGeneralDateChange() {
+  loadReports();
+  generalFilterOpen.value = false;
 }
 
 function navigateTo(route) {
