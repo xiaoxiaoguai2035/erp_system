@@ -1873,22 +1873,29 @@ async function openFinishDialog(id) {
   try {
     const detail = await fetchProductionWorkOrderDetail(id);
     const progress = await fetchProductionWorkOrderProgress(id);
+    const processRows = progress.processes || [];
+    const lastProcess = processRows.length ? processRows[processRows.length - 1] : null;
     const remainPlanQty = Math.max(Number(detail.planQty || 0) - Number(detail.finishedQty || 0), 0);
     const availableFinishQty = Math.max(
-      Number(progress.qualifiedQty || 0) - Number(progress.finishInQty || 0),
+      Number(lastProcess?.qualifiedQty || 0) - Number(progress.finishInQty || 0),
       0
     );
     const defaultQty = Math.min(remainPlanQty, availableFinishQty);
 
+    if (!lastProcess) {
+      ElMessage.warning("当前工单缺少工艺工序，无法执行完工入库");
+      return;
+    }
+
     if (defaultQty <= 0) {
-      ElMessage.warning("当前工单暂无可入库的合格数量");
+      ElMessage.warning("当前工单最后工序暂无可入库的合格数量");
       return;
     }
 
     finishWorkOrderRecord.value = detail;
     patchFinishForm({
       bizDate: getToday(),
-      remark: `${detail.code} 完工入库`,
+      remark: `${detail.code} 完工入库（末道工序：${lastProcess.processName}）`,
       items: [
         {
           materialId: detail.materialId,

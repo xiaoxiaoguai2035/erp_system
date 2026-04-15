@@ -579,12 +579,11 @@ public class ProductionServiceImpl implements ProductionService {
                 .map(WorkOrderFinishInRequest.FinishItem::getQty)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        WorkOrderReportSummary reportSummary = summarizeReports(id);
         BigDecimal alreadyFinishedQty = defaultDecimal(workOrder.getFinishedQty());
-        BigDecimal availableFinishQty = reportSummary.getQualifiedQty().subtract(alreadyFinishedQty);
+        BigDecimal availableFinishQty = loadAvailableFinishQtyByLastProcess(workOrder);
         BigDecimal remainPlanQty = defaultDecimal(workOrder.getPlanQty()).subtract(alreadyFinishedQty);
         if (finishQty.compareTo(availableFinishQty) > 0) {
-            throw new BusinessException(409, "完工入库数量超过已报工合格数量");
+            throw new BusinessException(409, "完工入库数量超过最后工序已报工合格数量");
         }
         if (finishQty.compareTo(remainPlanQty) > 0) {
             throw new BusinessException(409, "完工入库数量超过工单剩余计划数量");
@@ -745,6 +744,7 @@ public class ProductionServiceImpl implements ProductionService {
         if (request.getItems() == null || request.getItems().isEmpty()) {
             throw new BusinessException(400, "完工明细不能为空");
         }
+        BigDecimal finishQty = BigDecimal.ZERO;
         for (WorkOrderFinishInRequest.FinishItem item : request.getItems()) {
             if (!Objects.equals(item.getMaterialId(), workOrder.getMaterialId())) {
                 throw new BusinessException(400, "完工入库物料必须与工单产品一致");
@@ -752,6 +752,17 @@ public class ProductionServiceImpl implements ProductionService {
             if (item.getQty() == null || item.getQty().compareTo(BigDecimal.ZERO) <= 0) {
                 throw new BusinessException(400, "完工数量必须大于0");
             }
+            finishQty = finishQty.add(item.getQty());
+        }
+
+        BigDecimal alreadyFinishedQty = defaultDecimal(workOrder.getFinishedQty());
+        BigDecimal availableFinishQty = loadAvailableFinishQtyByLastProcess(workOrder);
+        BigDecimal remainPlanQty = defaultDecimal(workOrder.getPlanQty()).subtract(alreadyFinishedQty);
+        if (finishQty.compareTo(availableFinishQty) > 0) {
+            throw new BusinessException(409, "完工入库数量超过最后工序已报工合格数量");
+        }
+        if (finishQty.compareTo(remainPlanQty) > 0) {
+            throw new BusinessException(409, "完工入库数量超过工单剩余计划数量");
         }
     }
 
@@ -1297,6 +1308,23 @@ public class ProductionServiceImpl implements ProductionService {
                 .map(PrdReport::getReportQty)
                 .map(this::defaultDecimal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal loadQualifiedQty(Long workOrderId, Long processItemId) {
+        return prdReportMapper.selectList(new LambdaQueryWrapper<PrdReport>()
+                        .eq(PrdReport::getWorkOrderId, workOrderId)
+                        .eq(PrdReport::getProcessItemId, processItemId))
+                .stream()
+                .map(PrdReport::getQualifiedQty)
+                .map(this::defaultDecimal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal loadAvailableFinishQtyByLastProcess(PrdWorkOrder workOrder) {
+        List<BasProcessRouteItem> routeItems = requireRouteItems(workOrder.getRouteId());
+        BasProcessRouteItem lastProcessItem = routeItems.get(routeItems.size() - 1);
+        BigDecimal finalQualifiedQty = loadQualifiedQty(workOrder.getId(), lastProcessItem.getId());
+        return finalQualifiedQty.subtract(defaultDecimal(workOrder.getFinishedQty())).max(BigDecimal.ZERO);
     }
 
     private WorkOrderReportSummary summarizeReports(Long workOrderId) {
