@@ -83,12 +83,16 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public Map<String, Object> salesSummary(LocalDate startDate, LocalDate endDate) {
+    public Map<String, Object> salesSummary(LocalDate startDate, LocalDate endDate, Long customerId) {
         DateRange dateRange = normalizeDateRange(startDate, endDate);
         LocalDate today = LocalDate.now();
-        List<SalDoc> orders = salDocMapper.selectList(new LambdaQueryWrapper<SalDoc>()
+        LambdaQueryWrapper<SalDoc> orderQuery = new LambdaQueryWrapper<SalDoc>()
                 .eq(SalDoc::getDocType, DOC_TYPE_ORDER)
-                .orderByAsc(SalDoc::getDocDate));
+                .orderByAsc(SalDoc::getDocDate);
+        if (customerId != null) {
+            orderQuery.eq(SalDoc::getCustomerId, customerId);
+        }
+        List<SalDoc> orders = salDocMapper.selectList(orderQuery);
         List<LocalDate> orderDates = orders.stream().map(SalDoc::getDocDate).filter(Objects::nonNull).toList();
         LocalDate seriesStart = resolveSeriesStart(dateRange.getStartDate(), dateRange.getEndDate(), orderDates, today);
         LocalDate seriesEnd = resolveSeriesEnd(dateRange.getStartDate(), dateRange.getEndDate(), orderDates, today);
@@ -156,12 +160,16 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public Map<String, Object> purchaseSummary(LocalDate startDate, LocalDate endDate) {
+    public Map<String, Object> purchaseSummary(LocalDate startDate, LocalDate endDate, Long supplierId) {
         DateRange dateRange = normalizeDateRange(startDate, endDate);
         LocalDate today = LocalDate.now();
-        List<PurDoc> orders = purDocMapper.selectList(new LambdaQueryWrapper<PurDoc>()
+        LambdaQueryWrapper<PurDoc> orderQuery = new LambdaQueryWrapper<PurDoc>()
                 .eq(PurDoc::getDocType, DOC_TYPE_ORDER)
-                .orderByAsc(PurDoc::getDocDate));
+                .orderByAsc(PurDoc::getDocDate);
+        if (supplierId != null) {
+            orderQuery.eq(PurDoc::getSupplierId, supplierId);
+        }
+        List<PurDoc> orders = purDocMapper.selectList(orderQuery);
         List<LocalDate> orderDates = orders.stream().map(PurDoc::getDocDate).filter(Objects::nonNull).toList();
         LocalDate seriesStart = resolveSeriesStart(dateRange.getStartDate(), dateRange.getEndDate(), orderDates, today);
         LocalDate seriesEnd = resolveSeriesEnd(dateRange.getStartDate(), dateRange.getEndDate(), orderDates, today);
@@ -235,10 +243,14 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public Map<String, Object> inventorySummary(LocalDate startDate, LocalDate endDate) {
+    public Map<String, Object> inventorySummary(LocalDate startDate, LocalDate endDate, Long warehouseId) {
         DateRange dateRange = normalizeDateRange(startDate, endDate);
-        List<StkInventory> inventories = stkInventoryMapper.selectList(new LambdaQueryWrapper<StkInventory>()
-                .orderByAsc(StkInventory::getMaterialId));
+        LambdaQueryWrapper<StkInventory> inventoryQuery = new LambdaQueryWrapper<StkInventory>()
+                .orderByAsc(StkInventory::getMaterialId);
+        if (warehouseId != null) {
+            inventoryQuery.eq(StkInventory::getWarehouseId, warehouseId);
+        }
+        List<StkInventory> inventories = stkInventoryMapper.selectList(inventoryQuery);
         if (inventories.isEmpty()) {
             return buildEmptyInventorySummary(dateRange);
         }
@@ -335,10 +347,15 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<Map<String, Object>> arSummary(LocalDate startDate, LocalDate endDate, Integer limit) {
+    public List<Map<String, Object>> arSummary(LocalDate startDate, LocalDate endDate, Integer limit, Long customerId) {
         DateRange dateRange = normalizeDateRange(startDate, endDate);
+        LambdaQueryWrapper<SalDoc> orderQuery = new LambdaQueryWrapper<SalDoc>()
+                .eq(SalDoc::getDocType, DOC_TYPE_ORDER);
+        if (customerId != null) {
+            orderQuery.eq(SalDoc::getCustomerId, customerId);
+        }
         List<SalDoc> orders = filterByDateRange(
-                salDocMapper.selectList(new LambdaQueryWrapper<SalDoc>().eq(SalDoc::getDocType, DOC_TYPE_ORDER)),
+                salDocMapper.selectList(orderQuery),
                 SalDoc::getDocDate,
                 dateRange.getStartDate(),
                 dateRange.getEndDate()
@@ -384,10 +401,15 @@ public class ReportServiceImpl implements ReportService {
     }
 
     @Override
-    public List<Map<String, Object>> apSummary(LocalDate startDate, LocalDate endDate, Integer limit) {
+    public List<Map<String, Object>> apSummary(LocalDate startDate, LocalDate endDate, Integer limit, Long supplierId) {
         DateRange dateRange = normalizeDateRange(startDate, endDate);
+        LambdaQueryWrapper<PurDoc> orderQuery = new LambdaQueryWrapper<PurDoc>()
+                .eq(PurDoc::getDocType, DOC_TYPE_ORDER);
+        if (supplierId != null) {
+            orderQuery.eq(PurDoc::getSupplierId, supplierId);
+        }
         List<PurDoc> orders = filterByDateRange(
-                purDocMapper.selectList(new LambdaQueryWrapper<PurDoc>().eq(PurDoc::getDocType, DOC_TYPE_ORDER)),
+                purDocMapper.selectList(orderQuery),
                 PurDoc::getDocDate,
                 dateRange.getStartDate(),
                 dateRange.getEndDate()

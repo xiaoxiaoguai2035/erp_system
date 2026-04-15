@@ -45,12 +45,12 @@ public class AiAssistantServiceImpl implements AiAssistantService {
 
     @Override
     public AiReportInsightResponse generateReportInsight(LocalDate startDate, LocalDate endDate, String question) {
-        Map<String, Object> salesSummary = reportService.salesSummary(startDate, endDate);
-        Map<String, Object> purchaseSummary = reportService.purchaseSummary(startDate, endDate);
-        Map<String, Object> inventorySummary = reportService.inventorySummary(startDate, endDate);
+        Map<String, Object> salesSummary = reportService.salesSummary(startDate, endDate, null);
+        Map<String, Object> purchaseSummary = reportService.purchaseSummary(startDate, endDate, null);
+        Map<String, Object> inventorySummary = reportService.inventorySummary(startDate, endDate, null);
         Map<String, Object> productionSummary = reportService.productionSummary(startDate, endDate);
-        List<Map<String, Object>> arSummary = reportService.arSummary(startDate, endDate, 3);
-        List<Map<String, Object>> apSummary = reportService.apSummary(startDate, endDate, 3);
+        List<Map<String, Object>> arSummary = reportService.arSummary(startDate, endDate, 3, null);
+        List<Map<String, Object>> apSummary = reportService.apSummary(startDate, endDate, 3, null);
 
         String periodLabel = buildPeriodLabel(startDate, endDate);
         Map<String, Object> snapshot = buildSnapshot(salesSummary, purchaseSummary, inventorySummary, productionSummary, arSummary, apSummary);

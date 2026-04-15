@@ -28,318 +28,298 @@
       </div>
     </section>
 
-    <PagePanel title="生产计划列表" description="对应 `GET /api/v1/production/plans`，支持直接勾选计划执行 MRP">
+    <PagePanel title="生产管理" description="按计划、MRP、工单、报工分栏切换，避免整个页面一次性堆满。">
       <template #actions>
-        <div class="toolbar-actions">
-          <el-button @click="resetPlanFilters">重置</el-button>
-          <el-button type="primary" plain :disabled="!selectedPlanIds.length" @click="runMrpCalculation">
-            执行 MRP
-          </el-button>
-          <el-button type="primary" @click="openCreatePlanDialog">新增计划</el-button>
-        </div>
+        <el-button text @click="refreshProductionWorkspace">刷新全部</el-button>
       </template>
 
-      <div v-loading="planLoading">
-        <div class="filter-grid">
-          <el-input v-model="planFilters.keyword" clearable placeholder="搜索计划单号或产品" />
-          <el-select v-model="planFilters.status" clearable placeholder="全部状态">
-            <el-option label="草稿" value="draft" />
-            <el-option label="已审核" value="approved" />
-            <el-option label="执行中" value="in_progress" />
-            <el-option label="已完成" value="completed" />
-            <el-option label="已关闭" value="closed" />
-          </el-select>
-          <el-button type="primary" @click="loadPlans">查询</el-button>
-        </div>
+      <el-tabs v-model="activeSection" class="production-tabs">
+        <el-tab-pane label="生产计划" name="plans">
+          <div class="filter-grid">
+            <el-input v-model="planFilters.keyword" clearable placeholder="搜索计划单号或产品" />
+            <el-select v-model="planFilters.status" clearable placeholder="全部状态">
+              <el-option label="草稿" value="draft" />
+              <el-option label="已审核" value="approved" />
+              <el-option label="执行中" value="in_progress" />
+              <el-option label="已完成" value="completed" />
+              <el-option label="已关闭" value="closed" />
+            </el-select>
+            <el-button type="primary" @click="loadPlans">查询</el-button>
+            <el-button @click="resetPlanFilters">重置</el-button>
+            <el-button type="primary" plain :disabled="!selectedPlanIds.length" @click="runMrpCalculation">执行 MRP</el-button>
+            <el-button type="primary" @click="openCreatePlanDialog">新增计划</el-button>
+          </div>
 
-        <el-table :data="planRows" stripe row-key="id" @selection-change="handlePlanSelectionChange">
-          <el-table-column type="selection" width="52" :selectable="planSelectable" />
-          <el-table-column prop="code" label="计划单号" min-width="150" />
-          <el-table-column prop="materialCode" label="产品编码" min-width="120" />
-          <el-table-column prop="materialName" label="产品名称" min-width="160" />
-          <el-table-column label="计划数量" min-width="110">
-            <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
-          </el-table-column>
-          <el-table-column label="开始日期" min-width="110">
-            <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
-          </el-table-column>
-          <el-table-column label="结束日期" min-width="110">
-            <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
-          </el-table-column>
-          <el-table-column label="状态" min-width="100">
-            <template #default="{ row }">
-              <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="来源销售单" min-width="120">
-            <template #default="{ row }">
-              <el-button v-if="row.sourceSalesId" text type="primary" @click="openSourceSalesOrder(row.sourceSalesId)">
-                #{{ row.sourceSalesId }}
-              </el-button>
-              <span v-else>--</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" min-width="260" fixed="right">
-            <template #default="{ row }">
-              <div class="table-actions">
-                <el-button text @click="openPlanDetailDrawer(row.id)">详情</el-button>
-                <el-button text :disabled="!canEditPlan(row)" @click="openEditPlanDialog(row.id)">编辑</el-button>
-                <el-button text type="success" :disabled="!canApprovePlan(row)" @click="approvePlan(row.id)">审核</el-button>
-                <el-button text type="danger" :disabled="!canClosePlan(row)" @click="closePlan(row.id)">关闭</el-button>
-              </div>
-            </template>
-          </el-table-column>
-        </el-table>
+          <div v-loading="planLoading">
+            <el-table :data="planRows" stripe row-key="id" @selection-change="handlePlanSelectionChange">
+              <el-table-column type="selection" width="52" :selectable="planSelectable" />
+              <el-table-column prop="code" label="计划单号" min-width="150" />
+              <el-table-column prop="materialCode" label="产品编码" min-width="120" />
+              <el-table-column prop="materialName" label="产品名称" min-width="160" />
+              <el-table-column label="计划数量" min-width="110">
+                <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
+              </el-table-column>
+              <el-table-column label="开始日期" min-width="110">
+                <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
+              </el-table-column>
+              <el-table-column label="结束日期" min-width="110">
+                <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
+              </el-table-column>
+              <el-table-column label="状态" min-width="100">
+                <template #default="{ row }">
+                  <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="来源销售单" min-width="120">
+                <template #default="{ row }">
+                  <el-button v-if="row.sourceSalesId" text type="primary" @click="openSourceSalesOrder(row.sourceSalesId)">
+                    #{{ row.sourceSalesId }}
+                  </el-button>
+                  <span v-else>--</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="260" fixed="right">
+                <template #default="{ row }">
+                  <div class="table-actions">
+                    <el-button text @click="openPlanDetailDrawer(row.id)">详情</el-button>
+                    <el-button text :disabled="!canEditPlan(row)" @click="openEditPlanDialog(row.id)">编辑</el-button>
+                    <el-button text type="success" :disabled="!canApprovePlan(row)" @click="approvePlan(row.id)">审核</el-button>
+                    <el-button text type="danger" :disabled="!canClosePlan(row)" @click="closePlan(row.id)">关闭</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
 
-        <div class="pagination-wrap">
-          <el-pagination
-            background
-            layout="total, prev, pager, next, sizes"
-            :current-page="planPagination.pageNo"
-            :page-size="planPagination.pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            :total="planPagination.total"
-            @current-change="handlePlanPageChange"
-            @size-change="handlePlanSizeChange"
-          />
-        </div>
-      </div>
-    </PagePanel>
-
-    <PagePanel title="MRP 计算结果" description="对应 MRP 计算、采购建议生成、工单建议生成接口">
-      <template #actions>
-        <div class="toolbar-actions">
-          <el-button :disabled="!mrpResult" @click="clearMrpResult">清空结果</el-button>
-          <el-button
-            type="primary"
-            plain
-            :disabled="!selectedPurchaseSuggestionIds.length"
-            @click="generatePurchaseDocs"
-          >
-            生成采购建议
-          </el-button>
-          <el-button
-            type="primary"
-            :disabled="!selectedWorkOrderSuggestionIds.length"
-            @click="generateWorkOrderDocs"
-          >
-            生成工单
-          </el-button>
-        </div>
-      </template>
-
-      <div v-loading="mrpLoading">
-        <template v-if="mrpResult">
-          <el-alert
-            :title="`MRP 任务号：${mrpResult.taskKey}`"
-            type="success"
-            :closable="false"
-            style="margin-bottom: 18px"
-          />
-
-          <div class="mrp-grid">
-            <div class="mrp-block">
-              <div class="mrp-head">
-                <div>
-                  <strong>采购建议</strong>
-                </div>
-                <span class="table-tag tag-warning">{{ mrpResult.purchaseSuggestions?.length || 0 }} 条</span>
-              </div>
-
-              <el-table
-                :data="mrpResult.purchaseSuggestions || []"
-                stripe
-                row-key="id"
-                @selection-change="handlePurchaseSuggestionSelectionChange"
-              >
-                <el-table-column type="selection" width="52" />
-                <el-table-column prop="materialCode" label="物料编码" min-width="120" />
-                <el-table-column prop="materialName" label="物料名称" min-width="150" />
-                <el-table-column label="需求数量" min-width="110">
-                  <template #default="{ row }">{{ formatNumber(row.requiredQty) }}</template>
-                </el-table-column>
-                <el-table-column label="可用数量" min-width="110">
-                  <template #default="{ row }">{{ formatNumber(row.availableQty) }}</template>
-                </el-table-column>
-                <el-table-column label="缺口数量" min-width="110">
-                  <template #default="{ row }">{{ formatNumber(row.shortageQty) }}</template>
-                </el-table-column>
-                <el-table-column label="需求日期" min-width="110">
-                  <template #default="{ row }">{{ formatDate(row.needDate) }}</template>
-                </el-table-column>
-              </el-table>
-            </div>
-
-            <div class="mrp-block">
-              <div class="mrp-head">
-                <div>
-                  <strong>工单建议</strong>
-                </div>
-                <span class="table-tag tag-success">{{ mrpResult.workOrderSuggestions?.length || 0 }} 条</span>
-              </div>
-
-              <el-table
-                :data="mrpResult.workOrderSuggestions || []"
-                stripe
-                row-key="id"
-                @selection-change="handleWorkOrderSuggestionSelectionChange"
-              >
-                <el-table-column type="selection" width="52" />
-                <el-table-column prop="materialCode" label="产品编码" min-width="120" />
-                <el-table-column prop="materialName" label="产品名称" min-width="150" />
-                <el-table-column label="计划数量" min-width="110">
-                  <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
-                </el-table-column>
-                <el-table-column label="BOM" min-width="90">
-                  <template #default="{ row }">#{{ row.bomId }}</template>
-                </el-table-column>
-                <el-table-column label="工艺路线" min-width="90">
-                  <template #default="{ row }">#{{ row.routeId }}</template>
-                </el-table-column>
-                <el-table-column label="开工日期" min-width="110">
-                  <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
-                </el-table-column>
-                <el-table-column label="完工日期" min-width="110">
-                  <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
-                </el-table-column>
-              </el-table>
+            <div class="pagination-wrap">
+              <el-pagination
+                background
+                layout="total, prev, pager, next, sizes"
+                :current-page="planPagination.pageNo"
+                :page-size="planPagination.pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="planPagination.total"
+                @current-change="handlePlanPageChange"
+                @size-change="handlePlanSizeChange"
+              />
             </div>
           </div>
-        </template>
+        </el-tab-pane>
 
-        <el-empty v-else description="请先从上方生产计划中勾选已审核或执行中的计划，再执行 MRP 计算" />
-      </div>
-    </PagePanel>
+        <el-tab-pane label="MRP 结果" name="mrp">
+          <div class="toolbar-actions production-tab-actions">
+            <el-button :disabled="!mrpResult" @click="clearMrpResult">清空结果</el-button>
+            <el-button type="primary" plain :disabled="!selectedPurchaseSuggestionIds.length" @click="generatePurchaseDocs">
+              生成采购建议
+            </el-button>
+            <el-button type="primary" :disabled="!selectedWorkOrderSuggestionIds.length" @click="generateWorkOrderDocs">
+              生成工单
+            </el-button>
+          </div>
 
-    <PagePanel title="生产工单管理" description="对应工单列表、详情、新增、编辑、审核、关闭，以及执行动作入口">
-      <template #actions>
-        <div class="toolbar-actions">
-          <el-button @click="resetWorkOrderFilters">重置</el-button>
-          <el-button type="primary" @click="openCreateWorkOrderDialog">新增工单</el-button>
-        </div>
-      </template>
+          <div v-loading="mrpLoading">
+            <template v-if="mrpResult">
+              <el-alert
+                :title="`MRP 任务号：${mrpResult.taskKey}`"
+                type="success"
+                :closable="false"
+                style="margin-bottom: 18px"
+              />
 
-      <div v-loading="workOrderLoading">
-        <div class="filter-grid">
-          <el-input v-model="workOrderFilters.keyword" clearable placeholder="搜索工单号或产品" />
-          <el-select v-model="workOrderFilters.status" clearable placeholder="全部状态">
-            <el-option label="草稿" value="draft" />
-            <el-option label="已审核" value="approved" />
-            <el-option label="执行中" value="in_progress" />
-            <el-option label="已完成" value="completed" />
-            <el-option label="已关闭" value="closed" />
-          </el-select>
-          <el-button type="primary" @click="loadWorkOrders">查询</el-button>
-        </div>
+              <div class="mrp-grid">
+                <div class="mrp-block">
+                  <div class="mrp-head">
+                    <div>
+                      <strong>采购建议</strong>
+                    </div>
+                    <span class="table-tag tag-warning">{{ mrpResult.purchaseSuggestions?.length || 0 }} 条</span>
+                  </div>
 
-        <el-table :data="workOrderRows" stripe>
-          <el-table-column prop="code" label="工单号" min-width="150" />
-          <el-table-column label="来源计划" min-width="100">
-            <template #default="{ row }">#{{ row.planId }}</template>
-          </el-table-column>
-          <el-table-column prop="materialCode" label="产品编码" min-width="120" />
-          <el-table-column prop="materialName" label="产品名称" min-width="160" />
-          <el-table-column label="计划数量" min-width="110">
-            <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
-          </el-table-column>
-          <el-table-column label="已完工" min-width="110">
-            <template #default="{ row }">{{ formatNumber(row.finishedQty) }}</template>
-          </el-table-column>
-          <el-table-column label="状态" min-width="100">
-            <template #default="{ row }">
-              <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="开工日期" min-width="110">
-            <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
-          </el-table-column>
-          <el-table-column label="完工日期" min-width="110">
-            <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" min-width="520" fixed="right">
-            <template #default="{ row }">
-              <div class="table-actions">
-                <el-button text @click="openWorkOrderDetailDrawer(row.id)">详情</el-button>
-                <el-button text :disabled="!canEditWorkOrder(row)" @click="openEditWorkOrderDialog(row.id)">编辑</el-button>
-                <el-button text type="success" :disabled="!canApproveWorkOrder(row)" @click="approveWorkOrder(row.id)">审核</el-button>
-                <el-button text type="danger" :disabled="!canCloseWorkOrder(row)" @click="closeWorkOrder(row.id)">关闭</el-button>
-                <el-button text type="primary" :disabled="!canExecuteWorkOrder(row)" @click="openPickDialog(row.id)">领料</el-button>
-                <el-button text type="primary" :disabled="!canExecuteWorkOrder(row)" @click="openReportDialog(row)">报工</el-button>
-                <el-button text type="primary" :disabled="!canExecuteWorkOrder(row)" @click="openFinishDialog(row.id)">完工</el-button>
-                <el-button text @click="openProgressDrawer(row.id)">进度</el-button>
+                  <el-table
+                    :data="mrpResult.purchaseSuggestions || []"
+                    stripe
+                    row-key="id"
+                    @selection-change="handlePurchaseSuggestionSelectionChange"
+                  >
+                    <el-table-column type="selection" width="52" />
+                    <el-table-column prop="materialCode" label="物料编码" min-width="120" />
+                    <el-table-column prop="materialName" label="物料名称" min-width="150" />
+                    <el-table-column label="需求数量" min-width="110">
+                      <template #default="{ row }">{{ formatNumber(row.requiredQty) }}</template>
+                    </el-table-column>
+                    <el-table-column label="可用数量" min-width="110">
+                      <template #default="{ row }">{{ formatNumber(row.availableQty) }}</template>
+                    </el-table-column>
+                    <el-table-column label="缺口数量" min-width="110">
+                      <template #default="{ row }">{{ formatNumber(row.shortageQty) }}</template>
+                    </el-table-column>
+                    <el-table-column label="需求日期" min-width="110">
+                      <template #default="{ row }">{{ formatDate(row.needDate) }}</template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+
+                <div class="mrp-block">
+                  <div class="mrp-head">
+                    <div>
+                      <strong>工单建议</strong>
+                    </div>
+                    <span class="table-tag tag-success">{{ mrpResult.workOrderSuggestions?.length || 0 }} 条</span>
+                  </div>
+
+                  <el-table
+                    :data="mrpResult.workOrderSuggestions || []"
+                    stripe
+                    row-key="id"
+                    @selection-change="handleWorkOrderSuggestionSelectionChange"
+                  >
+                    <el-table-column type="selection" width="52" />
+                    <el-table-column prop="materialCode" label="产品编码" min-width="120" />
+                    <el-table-column prop="materialName" label="产品名称" min-width="150" />
+                    <el-table-column label="计划数量" min-width="110">
+                      <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
+                    </el-table-column>
+                    <el-table-column label="BOM" min-width="90">
+                      <template #default="{ row }">#{{ row.bomId }}</template>
+                    </el-table-column>
+                    <el-table-column label="工艺路线" min-width="90">
+                      <template #default="{ row }">#{{ row.routeId }}</template>
+                    </el-table-column>
+                    <el-table-column label="开工日期" min-width="110">
+                      <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
+                    </el-table-column>
+                    <el-table-column label="完工日期" min-width="110">
+                      <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
+                    </el-table-column>
+                  </el-table>
+                </div>
               </div>
             </template>
-          </el-table-column>
-        </el-table>
 
-        <div class="pagination-wrap">
-          <el-pagination
-            background
-            layout="total, prev, pager, next, sizes"
-            :current-page="workOrderPagination.pageNo"
-            :page-size="workOrderPagination.pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            :total="workOrderPagination.total"
-            @current-change="handleWorkOrderPageChange"
-            @size-change="handleWorkOrderSizeChange"
-          />
-        </div>
-      </div>
-    </PagePanel>
+            <el-empty v-else description="请先从生产计划中勾选已审核或执行中的计划，再执行 MRP 计算" />
+          </div>
+        </el-tab-pane>
 
-    <PagePanel title="报工记录" description="对应 `GET /api/v1/production/reports` 与新增报工接口">
-      <template #actions>
-        <div class="toolbar-actions">
-          <el-button type="primary" @click="openReportDialogFromFilter">新增报工</el-button>
-        </div>
-      </template>
+        <el-tab-pane label="工单管理" name="workorders">
+          <div class="filter-grid">
+            <el-input v-model="workOrderFilters.keyword" clearable placeholder="搜索工单号或产品" />
+            <el-select v-model="workOrderFilters.status" clearable placeholder="全部状态">
+              <el-option label="草稿" value="draft" />
+              <el-option label="已审核" value="approved" />
+              <el-option label="执行中" value="in_progress" />
+              <el-option label="已完成" value="completed" />
+              <el-option label="已关闭" value="closed" />
+            </el-select>
+            <el-button type="primary" @click="loadWorkOrders">查询</el-button>
+            <el-button @click="resetWorkOrderFilters">重置</el-button>
+            <el-button type="primary" @click="openCreateWorkOrderDialog">新增工单</el-button>
+          </div>
 
-      <div v-loading="reportLoading">
-        <div class="filter-grid report-filter-grid">
-          <el-select v-model="reportFilters.workOrderId" clearable filterable placeholder="按工单筛选">
-            <el-option
-              v-for="item in workOrderOptions"
-              :key="item.id"
-              :label="`${item.code} / ${item.materialName || '未命名产品'}`"
-              :value="item.id"
-            />
-          </el-select>
-          <el-button type="primary" @click="loadReports">查询</el-button>
-          <el-button @click="resetReportFilters">重置</el-button>
-        </div>
+          <div v-loading="workOrderLoading">
+            <el-table :data="workOrderRows" stripe>
+              <el-table-column prop="code" label="工单号" min-width="150" />
+              <el-table-column label="来源计划" min-width="100">
+                <template #default="{ row }">#{{ row.planId }}</template>
+              </el-table-column>
+              <el-table-column prop="materialCode" label="产品编码" min-width="120" />
+              <el-table-column prop="materialName" label="产品名称" min-width="160" />
+              <el-table-column label="计划数量" min-width="110">
+                <template #default="{ row }">{{ formatNumber(row.planQty) }}</template>
+              </el-table-column>
+              <el-table-column label="已完工" min-width="110">
+                <template #default="{ row }">{{ formatNumber(row.finishedQty) }}</template>
+              </el-table-column>
+              <el-table-column label="状态" min-width="100">
+                <template #default="{ row }">
+                  <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="开工日期" min-width="110">
+                <template #default="{ row }">{{ formatDate(row.startDate) }}</template>
+              </el-table-column>
+              <el-table-column label="完工日期" min-width="110">
+                <template #default="{ row }">{{ formatDate(row.endDate) }}</template>
+              </el-table-column>
+              <el-table-column label="操作" min-width="520" fixed="right">
+                <template #default="{ row }">
+                  <div class="table-actions">
+                    <el-button text @click="openWorkOrderDetailDrawer(row.id)">详情</el-button>
+                    <el-button text :disabled="!canEditWorkOrder(row)" @click="openEditWorkOrderDialog(row.id)">编辑</el-button>
+                    <el-button text type="success" :disabled="!canApproveWorkOrder(row)" @click="approveWorkOrder(row.id)">审核</el-button>
+                    <el-button text type="danger" :disabled="!canCloseWorkOrder(row)" @click="closeWorkOrder(row.id)">关闭</el-button>
+                    <el-button text type="primary" :disabled="!canExecuteWorkOrder(row)" @click="openPickDialog(row.id)">领料</el-button>
+                    <el-button text type="primary" :disabled="!canExecuteWorkOrder(row)" @click="openReportDialog(row)">报工</el-button>
+                    <el-button text type="primary" :disabled="!canExecuteWorkOrder(row)" @click="openFinishDialog(row.id)">完工</el-button>
+                    <el-button text @click="openProgressDrawer(row.id)">进度</el-button>
+                  </div>
+                </template>
+              </el-table-column>
+            </el-table>
 
-        <el-table :data="reportRows" stripe>
-          <el-table-column prop="workOrderCode" label="工单号" min-width="150" />
-          <el-table-column prop="processName" label="工序" min-width="150" />
-          <el-table-column label="报工时间" min-width="170">
-            <template #default="{ row }">{{ formatDateTime(row.reportDate) }}</template>
-          </el-table-column>
-          <el-table-column label="报工数量" min-width="110">
-            <template #default="{ row }">{{ formatNumber(row.reportQty) }}</template>
-          </el-table-column>
-          <el-table-column label="合格数量" min-width="110">
-            <template #default="{ row }">{{ formatNumber(row.qualifiedQty) }}</template>
-          </el-table-column>
-          <el-table-column label="不良数量" min-width="110">
-            <template #default="{ row }">{{ formatNumber(row.defectiveQty) }}</template>
-          </el-table-column>
-          <el-table-column prop="reporterName" label="报工人" min-width="120" />
-          <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        </el-table>
+            <div class="pagination-wrap">
+              <el-pagination
+                background
+                layout="total, prev, pager, next, sizes"
+                :current-page="workOrderPagination.pageNo"
+                :page-size="workOrderPagination.pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="workOrderPagination.total"
+                @current-change="handleWorkOrderPageChange"
+                @size-change="handleWorkOrderSizeChange"
+              />
+            </div>
+          </div>
+        </el-tab-pane>
 
-        <div class="pagination-wrap">
-          <el-pagination
-            background
-            layout="total, prev, pager, next, sizes"
-            :current-page="reportPagination.pageNo"
-            :page-size="reportPagination.pageSize"
-            :page-sizes="[10, 20, 50, 100]"
-            :total="reportPagination.total"
-            @current-change="handleReportPageChange"
-            @size-change="handleReportSizeChange"
-          />
-        </div>
-      </div>
+        <el-tab-pane label="报工记录" name="reports">
+          <div class="filter-grid report-filter-grid">
+            <el-select v-model="reportFilters.workOrderId" clearable filterable placeholder="按工单筛选">
+              <el-option
+                v-for="item in workOrderOptions"
+                :key="item.id"
+                :label="`${item.code} / ${item.materialName || '未命名产品'}`"
+                :value="item.id"
+              />
+            </el-select>
+            <el-button type="primary" @click="loadReports">查询</el-button>
+            <el-button @click="resetReportFilters">重置</el-button>
+            <el-button type="primary" plain @click="openReportDialogFromFilter">新增报工</el-button>
+          </div>
+
+          <div v-loading="reportLoading">
+            <el-table :data="reportRows" stripe>
+              <el-table-column prop="workOrderCode" label="工单号" min-width="150" />
+              <el-table-column prop="processName" label="工序" min-width="150" />
+              <el-table-column label="报工时间" min-width="170">
+                <template #default="{ row }">{{ formatDateTime(row.reportDate) }}</template>
+              </el-table-column>
+              <el-table-column label="报工数量" min-width="110">
+                <template #default="{ row }">{{ formatNumber(row.reportQty) }}</template>
+              </el-table-column>
+              <el-table-column label="合格数量" min-width="110">
+                <template #default="{ row }">{{ formatNumber(row.qualifiedQty) }}</template>
+              </el-table-column>
+              <el-table-column label="不良数量" min-width="110">
+                <template #default="{ row }">{{ formatNumber(row.defectiveQty) }}</template>
+              </el-table-column>
+              <el-table-column prop="reporterName" label="报工人" min-width="120" />
+              <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+            </el-table>
+
+            <div class="pagination-wrap">
+              <el-pagination
+                background
+                layout="total, prev, pager, next, sizes"
+                :current-page="reportPagination.pageNo"
+                :page-size="reportPagination.pageSize"
+                :page-sizes="[10, 20, 50, 100]"
+                :total="reportPagination.total"
+                @current-change="handleReportPageChange"
+                @size-change="handleReportSizeChange"
+              />
+            </div>
+          </div>
+        </el-tab-pane>
+      </el-tabs>
     </PagePanel>
 
     <el-dialog v-model="planFormVisible" :title="planDialogTitle" width="680px">
@@ -707,7 +687,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from "vue";
+import { computed, nextTick, onMounted, reactive, ref, watch } from "vue";
 import { ElMessage, ElMessageBox } from "element-plus";
 import { useRoute, useRouter } from "vue-router";
 
@@ -796,6 +776,7 @@ const reportProcessOptions = ref([]);
 const progressVisible = ref(false);
 const progressRecord = ref(null);
 const lastHandledRouteKey = ref("");
+const activeSection = ref("plans");
 
 const planFilters = reactive({
   keyword: "",
@@ -1080,6 +1061,14 @@ async function refreshDynamicOptions() {
   workOrderOptions.value = workOrderPage.records || [];
 }
 
+async function refreshProductionWorkspace() {
+  try {
+    await Promise.all([loadPlans(), loadWorkOrders(), loadReports(), refreshDynamicOptions()]);
+  } catch (error) {
+    ElMessage.error(error.message || "生产模块刷新失败");
+  }
+}
+
 async function loadPlans() {
   planLoading.value = true;
 
@@ -1226,6 +1215,7 @@ async function applyRouteQuery() {
   lastHandledRouteKey.value = routeKey;
 
   if (openPlanDialog && isPositiveRouteId(sourceSalesId) && isPositiveRouteId(materialId) && planQty > 0) {
+    activeSection.value = "plans";
     editingPlanId.value = null;
     patchPlanForm({
       materialId,
@@ -1239,10 +1229,12 @@ async function applyRouteQuery() {
   }
 
   if (isPositiveRouteId(planDetailId)) {
+    activeSection.value = "plans";
     await openPlanDetailDrawer(planDetailId);
   }
 
   if (isPositiveRouteId(workOrderId)) {
+    activeSection.value = "workorders";
     await openWorkOrderDetailDrawer(workOrderId);
   }
 }
@@ -1302,10 +1294,12 @@ async function runMrpCalculation() {
     return;
   }
 
+  activeSection.value = "mrp";
   await recalculateMrpSelection();
 }
 
 async function generatePurchaseDocs() {
+  activeSection.value = "mrp";
   if (!mrpResult.value?.taskKey || !selectedPurchaseSuggestionIds.value.length) {
     ElMessage.warning("请先选择需要生成的采购建议");
     return;
@@ -1329,6 +1323,7 @@ async function generatePurchaseDocs() {
 }
 
 async function generateWorkOrderDocs() {
+  activeSection.value = "mrp";
   if (!mrpResult.value?.taskKey || !selectedWorkOrderSuggestionIds.value.length) {
     ElMessage.warning("请先选择需要生成的工单建议");
     return;
@@ -1351,6 +1346,7 @@ async function generateWorkOrderDocs() {
 }
 
 function resetPlanFilters() {
+  activeSection.value = "plans";
   planFilters.keyword = "";
   planFilters.status = "";
   planPagination.pageNo = 1;
@@ -1370,6 +1366,7 @@ function handlePlanSizeChange(pageSize) {
 }
 
 function resetWorkOrderFilters() {
+  activeSection.value = "workorders";
   workOrderFilters.keyword = "";
   workOrderFilters.status = "";
   workOrderPagination.pageNo = 1;
@@ -1388,6 +1385,7 @@ function handleWorkOrderSizeChange(pageSize) {
 }
 
 function resetReportFilters() {
+  activeSection.value = "reports";
   reportFilters.workOrderId = undefined;
   reportPagination.pageNo = 1;
   loadReports();
@@ -1405,6 +1403,7 @@ function handleReportSizeChange(pageSize) {
 }
 
 function openCreatePlanDialog() {
+  activeSection.value = "plans";
   editingPlanId.value = null;
   patchPlanForm();
   planFormVisible.value = true;
@@ -1529,6 +1528,7 @@ function handleWorkOrderMaterialChange(materialId) {
 }
 
 function openCreateWorkOrderDialog() {
+  activeSection.value = "workorders";
   editingWorkOrderId.value = null;
   patchWorkOrderForm();
   workOrderFormVisible.value = true;
@@ -1838,6 +1838,7 @@ async function openReportDialog(workOrder) {
 }
 
 function openReportDialogFromFilter() {
+  activeSection.value = "reports";
   if (!reportFilters.workOrderId) {
     ElMessage.warning("请先在下方选择一个工单，再新增报工");
     return;
@@ -1913,6 +1914,18 @@ onMounted(async () => {
   }
 });
 
+watch(activeSection, async (_current, previous) => {
+  if (!previous) {
+    return;
+  }
+
+  const scrollTop = window.scrollY;
+  await nextTick();
+  requestAnimationFrame(() => {
+    window.scrollTo({ top: scrollTop, behavior: "auto" });
+  });
+});
+
 watch(
   () => route.query,
   () => {
@@ -1923,6 +1936,26 @@ watch(
 </script>
 
 <style scoped>
+.production-tabs {
+  margin-top: -6px;
+}
+
+.production-tabs :deep(.el-tabs__header) {
+  margin-bottom: 18px;
+}
+
+.production-tabs :deep(.el-tabs__nav-wrap::after) {
+  background-color: rgba(148, 163, 184, 0.18);
+}
+
+.production-tab-actions {
+  margin-bottom: 14px;
+}
+
+.production-tabs :deep(.el-tab-pane) {
+  min-width: 0;
+}
+
 .mrp-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1995,6 +2028,11 @@ watch(
 @media (max-width: 960px) {
   .report-filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .production-tab-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }
 </style>

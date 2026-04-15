@@ -15,7 +15,7 @@
       </div>
     </section>
 
-    <PagePanel title="分析菜单" description="按菜单切换图形、排行和穿透结果，减少页面噪音。">
+    <PagePanel>
       <div class="panel-menu">
         <button
           v-for="item in reportSections"
@@ -26,48 +26,83 @@
           @click="reportSection = item.key"
         >
           <span>{{ item.label }}</span>
-          <strong>{{ item.value }}</strong>
-          <small>{{ item.hint }}</small>
+          <em>{{ item.badge }}</em>
         </button>
       </div>
     </PagePanel>
 
-    <PagePanel title="筛选与导出" description="报表接口支持按日期筛选，应收应付排行支持限制条数">
+    <PagePanel title="筛选">
       <template #actions>
         <div class="toolbar-actions">
           <el-button @click="resetFilters">重置</el-button>
-          <el-button type="primary" @click="loadReports">查询</el-button>
           <el-button type="primary" plain @click="exportSnapshot">导出快照</el-button>
         </div>
       </template>
 
-      <div class="filter-grid report-filter-grid">
-        <el-date-picker
-          v-model="filters.dateRange"
-          type="daterange"
-          unlink-panels
-          clearable
-          value-format="YYYY-MM-DD"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-        />
-        <el-select v-model="filters.rankingLimit" placeholder="排行条数">
-          <el-option v-for="item in rankingOptions" :key="item" :label="`Top ${item}`" :value="item" />
-        </el-select>
-        <el-select v-model="filters.customerId" clearable filterable placeholder="客户维度">
-          <el-option v-for="item in customerOptions" :key="item.id" :label="item.name" :value="item.id" />
-        </el-select>
-        <el-select v-model="filters.supplierId" clearable filterable placeholder="供应商维度">
-          <el-option v-for="item in supplierOptions" :key="item.id" :label="item.name" :value="item.id" />
-        </el-select>
-        <el-select v-model="filters.warehouseId" clearable filterable placeholder="仓库维度">
-          <el-option v-for="item in warehouseOptions" :key="item.id" :label="item.name" :value="item.id" />
-        </el-select>
-        <div class="range-hint">
-          <strong>{{ currentRangeLabel }}</strong>
-          <span>按客户、供应商、仓库和排行条数联动下方分析模块</span>
-        </div>
+      <div class="floating-filter-bar">
+        <el-popover placement="bottom-start" trigger="click" :width="420">
+          <div class="filter-popover-body">
+            <el-date-picker
+              class="report-date-picker-inline"
+              v-model="filters.dateRange"
+              type="daterange"
+              unlink-panels
+              clearable
+              value-format="YYYY-MM-DD"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              @change="handleFilterChange"
+            />
+            <el-select v-model="filters.rankingLimit" placeholder="排行条数" @change="handleFilterChange">
+              <el-option v-for="item in rankingOptions" :key="item" :label="`前 ${item} 条`" :value="item" />
+            </el-select>
+          </div>
+          <template #reference>
+            <el-button plain>通用筛选</el-button>
+          </template>
+        </el-popover>
+
+        <el-popover placement="bottom-start" trigger="click" :width="300">
+          <div class="filter-popover-body">
+            <el-select v-model="filters.customerId" clearable filterable placeholder="客户" @change="handleFilterChange">
+              <el-option v-for="item in customerOptions" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </div>
+          <template #reference>
+            <el-button plain>销售筛选</el-button>
+          </template>
+        </el-popover>
+
+        <el-popover placement="bottom-start" trigger="click" :width="300">
+          <div class="filter-popover-body">
+            <el-select v-model="filters.supplierId" clearable filterable placeholder="供应商" @change="handleFilterChange">
+              <el-option v-for="item in supplierOptions" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </div>
+          <template #reference>
+            <el-button plain>采购筛选</el-button>
+          </template>
+        </el-popover>
+
+        <el-popover placement="bottom-start" trigger="click" :width="300">
+          <div class="filter-popover-body">
+            <el-select v-model="filters.warehouseId" clearable filterable placeholder="仓库" @change="handleFilterChange">
+              <el-option v-for="item in warehouseOptions" :key="item.id" :label="item.name" :value="item.id" />
+            </el-select>
+          </div>
+          <template #reference>
+            <el-button plain>库存筛选</el-button>
+          </template>
+        </el-popover>
+      </div>
+
+      <div class="scope-summary">
+        <div class="scope-chip">销售：{{ salesFilterLabel }}</div>
+        <div class="scope-chip">采购：{{ purchaseFilterLabel }}</div>
+        <div class="scope-chip">库存：{{ inventoryFilterLabel }}</div>
+        <div class="scope-chip">生产：仅按日期区间</div>
+        <div class="scope-chip">排行：{{ rankingLimitLabel }}</div>
       </div>
 
       <div v-show="reportSection === 'overview'" class="summary-grid">
@@ -89,11 +124,23 @@
     </PagePanel>
 
     <div v-show="reportSection === 'charts'" class="grid-2">
-      <PagePanel title="经营趋势" description="销售与采购金额按月份趋势汇总">
+      <PagePanel title="经营趋势">
+        <template #actions>
+          <div class="panel-chip-group">
+            <span class="scope-chip">销售：{{ salesFilterLabel }}</span>
+            <span class="scope-chip">采购：{{ purchaseFilterLabel }}</span>
+          </div>
+        </template>
         <EChartPanel :option="trendOption" @chart-click="handleTrendChartClick" />
       </PagePanel>
 
-      <PagePanel title="执行与风险" description="库存、生产与待执行量集中展示">
+      <PagePanel title="执行与风险">
+        <template #actions>
+          <div class="panel-chip-group">
+            <span class="scope-chip">库存：{{ inventoryFilterLabel }}</span>
+            <span class="scope-chip">生产：仅按日期</span>
+          </div>
+        </template>
         <EChartPanel :option="riskOption" @chart-click="handleRiskChartClick" />
       </PagePanel>
     </div>
@@ -140,7 +187,7 @@
     </PagePanel>
 
     <div v-show="reportSection === 'accounts'" class="grid-2">
-      <PagePanel title="应收账款排行" description="可直接跳到来源销售订单详情">
+      <PagePanel :title="arPanelTitle">
         <el-table :data="filteredArSummary" stripe>
           <el-table-column prop="customer" label="客户" min-width="150" />
           <el-table-column label="金额(元)" min-width="120">
@@ -164,7 +211,7 @@
         </el-table>
       </PagePanel>
 
-      <PagePanel title="应付账款排行" description="可直接跳到来源采购订单详情">
+      <PagePanel :title="apPanelTitle">
         <el-table :data="filteredApSummary" stripe>
           <el-table-column prop="supplier" label="供应商" min-width="150" />
           <el-table-column label="金额(元)" min-width="120">
@@ -190,7 +237,7 @@
     </div>
 
     <div v-show="reportSection === 'drilldown'" class="grid-2">
-      <PagePanel title="库存穿透分析" description="支持按仓库下钻低库存物料并跳到库存页">
+      <PagePanel :title="inventoryPanelTitle">
         <template #actions>
           <el-button text type="primary" @click="navigateTo({ name: 'inventory', query: { tab: 'stocks' } })">查看库存余额</el-button>
         </template>
@@ -222,7 +269,7 @@
         </el-table>
       </PagePanel>
 
-      <PagePanel title="生产穿透分析" description="识别延期风险工单并跳转到生产模块详情">
+      <PagePanel :title="productionPanelTitle">
         <template #actions>
           <el-button text type="primary" @click="navigateTo({ name: 'production' })">查看全部工单</el-button>
         </template>
@@ -323,20 +370,56 @@ const reportHighlight = reactive(createEmptyHighlight());
 const reportSection = ref("overview");
 
 const rankingOptions = [5, 10, 15, 20];
-const filters = reactive({
+const DEFAULT_REPORT_FILTERS = {
   dateRange: [],
   rankingLimit: 10,
   customerId: undefined,
   supplierId: undefined,
   warehouseId: undefined
-});
+};
+
+function cloneFilterState(source = DEFAULT_REPORT_FILTERS) {
+  return {
+    dateRange: source.dateRange?.length ? [...source.dateRange] : [],
+    rankingLimit: Number(source.rankingLimit ?? DEFAULT_REPORT_FILTERS.rankingLimit),
+    customerId: source.customerId ?? undefined,
+    supplierId: source.supplierId ?? undefined,
+    warehouseId: source.warehouseId ?? undefined
+  };
+}
+
+function syncFilterState(target, source) {
+  const next = cloneFilterState(source);
+  target.dateRange = next.dateRange;
+  target.rankingLimit = next.rankingLimit;
+  target.customerId = next.customerId;
+  target.supplierId = next.supplierId;
+  target.warehouseId = next.warehouseId;
+}
+
+function serializeFilterState(source) {
+  return JSON.stringify(cloneFilterState(source));
+}
+
+const filters = reactive(cloneFilterState());
+const appliedFilters = reactive(cloneFilterState());
 
 const currentRangeLabel = computed(() => {
-  if (!filters.dateRange?.length) {
+  if (!appliedFilters.dateRange?.length) {
     return "最近经营概览";
   }
-  return `${filters.dateRange[0]} 至 ${filters.dateRange[1]}`;
+  return `${appliedFilters.dateRange[0]} 至 ${appliedFilters.dateRange[1]}`;
 });
+
+const hasPendingFilterChanges = computed(() => serializeFilterState(filters) !== serializeFilterState(appliedFilters));
+const salesFilterLabel = computed(() => resolveFilterLabel(customerOptions, appliedFilters.customerId));
+const purchaseFilterLabel = computed(() => resolveFilterLabel(supplierOptions, appliedFilters.supplierId));
+const inventoryFilterLabel = computed(() => resolveFilterLabel(warehouseOptions, appliedFilters.warehouseId));
+const rankingLimitLabel = computed(() => `前 ${appliedFilters.rankingLimit} 条`);
+const arPanelTitle = computed(() => `应收账款排行 · ${salesFilterLabel.value}`);
+const apPanelTitle = computed(() => `应付账款排行 · ${purchaseFilterLabel.value}`);
+const inventoryPanelTitle = computed(() => `库存穿透分析 · ${inventoryFilterLabel.value}`);
+const productionPanelTitle = computed(() => "生产穿透分析 · 日期区间");
 
 const heroCards = computed(() => [
   {
@@ -394,23 +477,23 @@ const insightCards = computed(() => [
 
 const filteredArSummary = computed(() => {
   const rows = arSummary.value || [];
-  if (!filters.customerId) {
+  if (!appliedFilters.customerId) {
     return rows;
   }
-  return rows.filter((item) => Number(item.customerId) === Number(filters.customerId));
+  return rows.filter((item) => Number(item.customerId) === Number(appliedFilters.customerId));
 });
 
 const filteredApSummary = computed(() => {
   const rows = apSummary.value || [];
-  if (!filters.supplierId) {
+  if (!appliedFilters.supplierId) {
     return rows;
   }
-  return rows.filter((item) => Number(item.supplierId) === Number(filters.supplierId));
+  return rows.filter((item) => Number(item.supplierId) === Number(appliedFilters.supplierId));
 });
 
 const inventoryDrillRows = computed(() =>
   (inventoryStocks.value || [])
-    .filter((item) => !filters.warehouseId || Number(item.warehouseId) === Number(filters.warehouseId))
+    .filter((item) => !appliedFilters.warehouseId || Number(item.warehouseId) === Number(appliedFilters.warehouseId))
     .map((item) => ({
       ...item,
       safetyStock: Number(item.safetyStock || 0),
@@ -419,7 +502,7 @@ const inventoryDrillRows = computed(() =>
     }))
     .filter((item) => item.safetyStock > 0 && item.shortageQty > 0)
     .sort((left, right) => right.shortageQty - left.shortageQty)
-    .slice(0, filters.rankingLimit)
+    .slice(0, appliedFilters.rankingLimit)
 );
 
 const productionDrillRows = computed(() => {
@@ -441,7 +524,7 @@ const productionDrillRows = computed(() => {
     })
     .filter((item) => item.delayDays > 0 && !["completed", "closed"].includes(String(item.status || "").toLowerCase()))
     .sort((left, right) => right.delayDays - left.delayDays || left.progressRate - right.progressRate)
-    .slice(0, filters.rankingLimit);
+    .slice(0, appliedFilters.rankingLimit);
 });
 
 const focusedCustomerRow = computed(() => filteredArSummary.value[0] || null);
@@ -536,38 +619,32 @@ const reportSections = computed(() => [
   {
     key: "overview",
     label: "经营总览",
-    value: `${insightCards.value.length + anomalyCards.value.length} 张摘要`,
-    hint: "先看核心摘要和异常卡片"
+    badge: `${insightCards.value.length + anomalyCards.value.length}`
   },
   {
     key: "charts",
     label: "趋势图形",
-    value: `${trendLabels.value.length || 0} 个月`,
-    hint: "切换趋势与风险图形查看变化"
+    badge: `${trendLabels.value.length || 0}`
   },
   {
     key: "highlight",
     label: "联动高亮",
-    value: `${reportHighlight.rows.length || reportHighlight.metrics.length || 0} 条结果`,
-    hint: "集中查看图表、排行和穿透后的说明"
+    badge: `${reportHighlight.rows.length || reportHighlight.metrics.length || 0}`
   },
   {
     key: "accounts",
     label: "账款排行",
-    value: `${filteredArSummary.value.length + filteredApSummary.value.length} 条排行`,
-    hint: "查看应收和应付的主要对象"
+    badge: `${filteredArSummary.value.length + filteredApSummary.value.length}`
   },
   {
     key: "drilldown",
     label: "穿透分析",
-    value: `${inventoryDrillRows.value.length + productionDrillRows.value.length} 条明细`,
-    hint: "查看库存与生产异常穿透结果"
+    badge: `${inventoryDrillRows.value.length + productionDrillRows.value.length}`
   },
   {
     key: "focus",
     label: "多维聚焦",
-    value: "3 个对象",
-    hint: "按客户、供应商和仓库收束重点"
+    badge: "3"
   }
 ]);
 
@@ -648,10 +725,31 @@ const riskOption = computed(() => ({
   ]
 }));
 
-function buildQueryParams() {
+function buildQueryParams(filterState = appliedFilters) {
   return {
-    startDate: filters.dateRange?.[0] || undefined,
-    endDate: filters.dateRange?.[1] || undefined
+    startDate: filterState.dateRange?.[0] || undefined,
+    endDate: filterState.dateRange?.[1] || undefined
+  };
+}
+
+function buildSalesReportParams(filterState = appliedFilters) {
+  return {
+    ...buildQueryParams(filterState),
+    customerId: filterState.customerId || undefined
+  };
+}
+
+function buildPurchaseReportParams(filterState = appliedFilters) {
+  return {
+    ...buildQueryParams(filterState),
+    supplierId: filterState.supplierId || undefined
+  };
+}
+
+function buildInventoryReportParams(filterState = appliedFilters) {
+  return {
+    ...buildQueryParams(filterState),
+    warehouseId: filterState.warehouseId || undefined
   };
 }
 
@@ -673,20 +771,24 @@ function resolveMonthRange(label) {
   return [toText(start), toText(end)];
 }
 
-async function loadReports() {
+async function loadReports(filterState = filters) {
   loading.value = true;
 
   try {
-    const baseParams = buildQueryParams();
+    const requestFilters = cloneFilterState(filterState);
+    const baseParams = buildQueryParams(requestFilters);
+    const salesParams = buildSalesReportParams(requestFilters);
+    const purchaseParams = buildPurchaseReportParams(requestFilters);
+    const inventoryParams = buildInventoryReportParams(requestFilters);
     const [salesData, purchaseData, inventoryData, productionData, arData, apData, stockPage, workOrderPage] = await Promise.all([
-      fetchSalesSummary(baseParams),
-      fetchPurchaseSummary(baseParams),
-      fetchInventorySummary(baseParams),
+      fetchSalesSummary(salesParams),
+      fetchPurchaseSummary(purchaseParams),
+      fetchInventorySummary(inventoryParams),
       fetchProductionSummary(baseParams),
-      fetchArSummary({ ...baseParams, limit: filters.rankingLimit }),
-      fetchApSummary({ ...baseParams, limit: filters.rankingLimit }),
-      fetchInventoryStocks({ pageNo: 1, pageSize: 200, warehouseId: filters.warehouseId || undefined }),
-      fetchProductionWorkOrders({ pageNo: 1, pageSize: 200 })
+      fetchArSummary({ ...salesParams, limit: requestFilters.rankingLimit }),
+      fetchApSummary({ ...purchaseParams, limit: requestFilters.rankingLimit }),
+      fetchInventoryStocks({ pageNo: 1, pageSize: 200, warehouseId: requestFilters.warehouseId || undefined }),
+      fetchProductionWorkOrders({ pageNo: 1, pageSize: 200, ...baseParams })
     ]);
 
     salesSummary.value = salesData || {};
@@ -697,9 +799,12 @@ async function loadReports() {
     apSummary.value = apData || [];
     inventoryStocks.value = stockPage.records || [];
     productionWorkOrders.value = workOrderPage.records || [];
+    syncFilterState(appliedFilters, requestFilters);
     syncDefaultHighlight();
+    return true;
   } catch (error) {
     ElMessage.error(error.message || "报表加载失败");
+    return false;
   } finally {
     loading.value = false;
   }
@@ -721,12 +826,12 @@ async function loadFilterOptions() {
 }
 
 function resetFilters() {
-  filters.dateRange = [];
-  filters.rankingLimit = 10;
-  filters.customerId = undefined;
-  filters.supplierId = undefined;
-  filters.warehouseId = undefined;
+  syncFilterState(filters, DEFAULT_REPORT_FILTERS);
   reportSection.value = "overview";
+  loadReports();
+}
+
+function handleFilterChange() {
   loadReports();
 }
 
@@ -741,7 +846,10 @@ async function handleTrendChartClick(params) {
     return;
   }
   filters.dateRange = range;
-  await loadReports();
+  const synced = await loadReports();
+  if (!synced) {
+    return;
+  }
   const labels = trendLabels.value || [];
   const salesSeries = alignSeries(labels, salesSummary.value.monthLabels, salesSummary.value.series);
   const purchaseSeries = alignSeries(labels, purchaseSummary.value.monthLabels, purchaseSummary.value.series);
@@ -803,7 +911,7 @@ function handleRiskChartClick(params) {
           hint: "库存效率参考"
         }
       ],
-      rows: inventoryDrillRows.value.slice(0, Math.min(6, filters.rankingLimit)),
+      rows: inventoryDrillRows.value.slice(0, Math.min(6, appliedFilters.rankingLimit)),
       columns: [
         { prop: "materialName", label: "物料", minWidth: 150 },
         { prop: "warehouseName", label: "仓库", minWidth: 120 },
@@ -833,7 +941,7 @@ function handleRiskChartClick(params) {
           hint: currentRangeLabel.value
         }
       ],
-      rows: productionDrillRows.value.slice(0, Math.min(6, filters.rankingLimit)),
+      rows: productionDrillRows.value.slice(0, Math.min(6, appliedFilters.rankingLimit)),
       columns: [
         { prop: "code", label: "工单号", minWidth: 150 },
         { prop: "materialName", label: "产品", minWidth: 130 },
@@ -863,7 +971,7 @@ function handleRiskChartClick(params) {
           hint: currentRangeLabel.value
         }
       ],
-      rows: filteredArSummary.value.slice(0, Math.min(5, filters.rankingLimit)),
+      rows: filteredArSummary.value.slice(0, Math.min(5, appliedFilters.rankingLimit)),
       columns: [
         { prop: "customer", label: "客户", minWidth: 140 },
         { prop: "sourceOrderCode", label: "来源订单", minWidth: 140 },
@@ -892,7 +1000,7 @@ function handleRiskChartClick(params) {
           hint: currentRangeLabel.value
         }
       ],
-      rows: filteredApSummary.value.slice(0, Math.min(5, filters.rankingLimit)),
+      rows: filteredApSummary.value.slice(0, Math.min(5, appliedFilters.rankingLimit)),
       columns: [
         { prop: "supplier", label: "供应商", minWidth: 140 },
         { prop: "sourceOrderCode", label: "来源订单", minWidth: 140 },
@@ -940,7 +1048,7 @@ function syncDefaultHighlight() {
           hint: "生产执行总体表现"
         }
       ],
-      rows: productionDrillRows.value.slice(0, Math.min(5, filters.rankingLimit)),
+      rows: productionDrillRows.value.slice(0, Math.min(5, appliedFilters.rankingLimit)),
       columns: [
         { prop: "code", label: "工单号", minWidth: 150 },
         { prop: "materialName", label: "产品", minWidth: 130 },
@@ -970,7 +1078,7 @@ function syncDefaultHighlight() {
           hint: "库存资产快照"
         }
       ],
-      rows: inventoryDrillRows.value.slice(0, Math.min(5, filters.rankingLimit)),
+      rows: inventoryDrillRows.value.slice(0, Math.min(5, appliedFilters.rankingLimit)),
       columns: [
         { prop: "materialName", label: "物料", minWidth: 150 },
         { prop: "warehouseName", label: "仓库", minWidth: 120 },
@@ -998,7 +1106,7 @@ function syncDefaultHighlight() {
         hint: focusedSupplierHint.value
       }
     ],
-    rows: filteredArSummary.value.slice(0, Math.min(5, filters.rankingLimit)),
+    rows: filteredArSummary.value.slice(0, Math.min(5, appliedFilters.rankingLimit)),
     columns: [
       { prop: "customer", label: "客户", minWidth: 140 },
       { prop: "sourceOrderCode", label: "来源订单", minWidth: 140 },
@@ -1189,43 +1297,170 @@ function formatReportHighlightCell(row, column) {
   return value ?? "--";
 }
 
+function resolveFilterLabel(options, id) {
+  if (!id) {
+    return "全部";
+  }
+  const matched = (options.value || []).find((item) => Number(item.id) === Number(id));
+  return matched?.name || `ID ${id}`;
+}
+
+function appendSnapshotSection(rows, title, headers = [], dataRows = []) {
+  rows.push([]);
+  rows.push([title]);
+  if (headers.length) {
+    rows.push(headers);
+  }
+  if (dataRows.length) {
+    rows.push(...dataRows);
+    return;
+  }
+  rows.push(["暂无数据"]);
+}
+
+function buildTrendSnapshotRows() {
+  const labels = trendLabels.value || [];
+  const salesSeries = alignSeries(labels, salesSummary.value.monthLabels, salesSummary.value.series);
+  const purchaseSeries = alignSeries(labels, purchaseSummary.value.monthLabels, purchaseSummary.value.series);
+
+  return labels.map((label, index) => [label, formatMoney(salesSeries[index]), formatMoney(purchaseSeries[index])]);
+}
+
+function buildRiskSnapshotRows() {
+  return [
+    ["库存预警", formatNumber(inventorySummary.value.warningCount, "0")],
+    ["在制工单", formatNumber(productionSummary.value.inProgressCount, "0")],
+    ["延期风险", formatNumber(productionSummary.value.delayRiskCount, "0")],
+    ["待发货", formatNumber(salesSummary.value.pendingShipmentQty, "0")],
+    ["待到货", formatNumber(purchaseSummary.value.pendingReceiveQty, "0")]
+  ];
+}
+
+function buildHighlightSnapshotRows() {
+  return (reportHighlight.rows || []).map((row) =>
+    (reportHighlight.columns || []).map((column) => formatReportHighlightCell(row, column))
+  );
+}
+
 function csvEscape(value) {
   const text = value === null || value === undefined ? "" : String(value);
   return `"${text.replaceAll('"', '""')}"`;
 }
 
-function exportSnapshot() {
+async function exportSnapshot() {
+  if (hasPendingFilterChanges.value) {
+    const synced = await loadReports();
+    if (!synced) {
+      ElMessage.error("当前筛选数据同步失败，未导出快照");
+      return;
+    }
+  }
+
   const rows = [
     ["统计分析快照", ""],
     ["导出时间", new Date().toLocaleString("zh-CN")],
     ["统计区间", currentRangeLabel.value],
-    [],
+    ["排行条数", rankingLimitLabel.value],
+    ["客户维度", resolveFilterLabel(customerOptions, appliedFilters.customerId)],
+    ["供应商维度", resolveFilterLabel(supplierOptions, appliedFilters.supplierId)],
+    ["仓库维度", resolveFilterLabel(warehouseOptions, appliedFilters.warehouseId)],
+    ["当前高亮", reportHighlight.title || "--"],
+    ["高亮说明", reportHighlight.description || "--"]
+  ];
+
+  appendSnapshotSection(
+    rows,
+    "经营指标",
     ["指标", "数值", "说明"],
-    [heroCards.value[0].title, heroCards.value[0].value, heroCards.value[0].hint],
-    [heroCards.value[1].title, heroCards.value[1].value, heroCards.value[1].hint],
-    [heroCards.value[2].title, heroCards.value[2].value, heroCards.value[2].hint],
-    [heroCards.value[3].title, heroCards.value[3].value, heroCards.value[3].hint],
-    [],
-    ["应收排行"],
+    heroCards.value.map((item) => [item.title, item.value, item.hint])
+  );
+
+  appendSnapshotSection(
+    rows,
+    "经营摘要",
+    ["指标", "数值", "说明"],
+    insightCards.value.map((item) => [item.label, item.value, item.hint])
+  );
+
+  appendSnapshotSection(
+    rows,
+    "异常关注",
+    ["指标", "数值", "说明"],
+    anomalyCards.value.map((item) => [item.label, item.value, item.hint])
+  );
+
+  appendSnapshotSection(rows, "经营趋势", ["月份", "销售额", "采购额"], buildTrendSnapshotRows());
+  appendSnapshotSection(rows, "风险概览", ["指标", "数值"], buildRiskSnapshotRows());
+  appendSnapshotSection(
+    rows,
+    "联动高亮指标",
+    ["指标", "数值", "说明"],
+    (reportHighlight.metrics || []).map((item) => [item.label, item.value, item.hint])
+  );
+  appendSnapshotSection(
+    rows,
+    "联动高亮明细",
+    (reportHighlight.columns || []).map((column) => column.label),
+    buildHighlightSnapshotRows()
+  );
+  appendSnapshotSection(
+    rows,
+    "应收排行",
     ["客户", "金额", "未完结订单", "来源订单", "单据日期"],
-    ...filteredArSummary.value.map((item) => [
+    filteredArSummary.value.map((item) => [
       item.customer,
       formatMoney(item.amount),
       formatNumber(item.orderCount, "0"),
       item.sourceOrderCode || "--",
       formatDate(item.sourceDocDate)
-    ]),
-    [],
-    ["应付排行"],
+    ])
+  );
+  appendSnapshotSection(
+    rows,
+    "应付排行",
     ["供应商", "金额", "未完结订单", "来源订单", "单据日期"],
-    ...filteredApSummary.value.map((item) => [
+    filteredApSummary.value.map((item) => [
       item.supplier,
       formatMoney(item.amount),
       formatNumber(item.orderCount, "0"),
       item.sourceOrderCode || "--",
       formatDate(item.sourceDocDate)
     ])
-  ];
+  );
+  appendSnapshotSection(
+    rows,
+    "库存穿透分析",
+    ["物料", "仓库", "可用库存", "安全库存", "缺口"],
+    inventoryDrillRows.value.map((item) => [
+      item.materialName,
+      item.warehouseName,
+      formatNumber(item.availableQty),
+      formatNumber(item.safetyStock),
+      formatNumber(item.shortageQty)
+    ])
+  );
+  appendSnapshotSection(
+    rows,
+    "生产穿透分析",
+    ["工单号", "产品", "计划完工", "进度", "延期天数"],
+    productionDrillRows.value.map((item) => [
+      item.code,
+      item.materialName,
+      formatDate(item.endDate),
+      formatPercent(item.progressRate, 1, "0.0%"),
+      formatNumber(item.delayDays, "0")
+    ])
+  );
+  appendSnapshotSection(
+    rows,
+    "多维经营聚焦",
+    ["对象", "名称", "说明"],
+    [
+      ["客户焦点", focusedCustomerName.value, focusedCustomerHint.value],
+      ["供应商焦点", focusedSupplierName.value, focusedSupplierHint.value],
+      ["仓库焦点", focusedWarehouseName.value, focusedWarehouseHint.value]
+    ]
+  );
 
   const csvContent = `\uFEFF${rows.map((row) => row.map(csvEscape).join(",")).join("\n")}`;
   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -1256,15 +1491,17 @@ small {
 .panel-menu {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 14px;
+  gap: 10px;
 }
 
 .panel-menu-item {
-  display: grid;
-  gap: 6px;
-  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
   border: 1px solid rgba(191, 219, 254, 0.4);
-  border-radius: 20px;
+  border-radius: 16px;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(238, 242, 255, 0.88));
   color: var(--text-main);
   text-align: left;
@@ -1283,31 +1520,69 @@ small {
 }
 
 .panel-menu-item span,
-.panel-menu-item small {
+.panel-menu-item em {
   color: var(--text-soft);
+  font-style: normal;
 }
 
-.panel-menu-item strong {
-  font-size: 18px;
-}
-
-.report-filter-grid {
-  grid-template-columns: minmax(0, 2fr) repeat(4, minmax(140px, 160px)) minmax(220px, 1fr);
-  align-items: center;
-}
-
-.range-hint {
-  display: grid;
-  gap: 4px;
-}
-
-.range-hint strong {
+.panel-menu-item span {
   font-size: 15px;
+  font-weight: 600;
 }
 
-.range-hint span {
-  color: var(--text-soft);
+.panel-menu-item em {
   font-size: 13px;
+  min-width: 28px;
+  text-align: center;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+}
+
+.floating-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.filter-popover-body {
+  display: grid;
+  gap: 12px;
+}
+
+.report-date-picker-inline {
+  width: 100%;
+}
+
+:deep(.report-date-picker-inline.el-date-editor) {
+  width: 100% !important;
+}
+
+:deep(.report-date-picker-inline .el-range-input) {
+  min-width: 100px;
+}
+
+.scope-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.scope-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.08);
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.panel-chip-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .stack-panel {
@@ -1380,7 +1655,6 @@ small {
 
 @media (max-width: 1280px) {
   .panel-menu,
-  .report-filter-grid,
   .summary-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1388,7 +1662,6 @@ small {
 
 @media (max-width: 960px) {
   .panel-menu,
-  .report-filter-grid,
   .summary-grid {
     grid-template-columns: 1fr;
   }

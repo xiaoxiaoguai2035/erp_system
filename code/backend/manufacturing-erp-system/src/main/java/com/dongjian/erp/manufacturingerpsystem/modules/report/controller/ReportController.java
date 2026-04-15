@@ -25,22 +25,25 @@ public class ReportController {
     @GetMapping("/sales-summary")
     public ApiResponse<Map<String, Object>> salesSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ApiResponse.success(reportService.salesSummary(startDate, endDate));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long customerId) {
+        return ApiResponse.success(reportService.salesSummary(startDate, endDate, customerId));
     }
 
     @GetMapping("/purchase-summary")
     public ApiResponse<Map<String, Object>> purchaseSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ApiResponse.success(reportService.purchaseSummary(startDate, endDate));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long supplierId) {
+        return ApiResponse.success(reportService.purchaseSummary(startDate, endDate, supplierId));
     }
 
     @GetMapping("/inventory-summary")
     public ApiResponse<Map<String, Object>> inventorySummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        return ApiResponse.success(reportService.inventorySummary(startDate, endDate));
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long warehouseId) {
+        return ApiResponse.success(reportService.inventorySummary(startDate, endDate, warehouseId));
     }
 
     @GetMapping("/production-summary")
@@ -54,15 +57,17 @@ public class ReportController {
     public ApiResponse<List<Map<String, Object>>> arSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Integer limit) {
-        return ApiResponse.success(reportService.arSummary(startDate, endDate, limit));
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Long customerId) {
+        return ApiResponse.success(reportService.arSummary(startDate, endDate, limit, customerId));
     }
 
     @GetMapping("/ap-summary")
     public ApiResponse<List<Map<String, Object>>> apSummary(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
-            @RequestParam(required = false) Integer limit) {
-        return ApiResponse.success(reportService.apSummary(startDate, endDate, limit));
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) Long supplierId) {
+        return ApiResponse.success(reportService.apSummary(startDate, endDate, limit, supplierId));
     }
 }
