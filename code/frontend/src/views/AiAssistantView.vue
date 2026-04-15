@@ -200,6 +200,7 @@ const insightFilters = reactive({
   dateRange: [],
   question: ""
 });
+const INSIGHT_CACHE_KEY = "erp_ai_insight_cache";
 
 const fillExample = (value) => {
   question.value = value;
@@ -284,10 +285,50 @@ const loadInsight = async () => {
     });
     activeInsightView.value = "overview";
     connected.value = true;
+    persistInsightCache();
   } catch (error) {
     ElMessage.error(error.message || "报表解读生成失败");
   } finally {
     insightLoading.value = false;
+  }
+};
+
+const persistInsightCache = () => {
+  try {
+    localStorage.setItem(
+      INSIGHT_CACHE_KEY,
+      JSON.stringify({
+        filters: {
+          dateRange: insightFilters.dateRange?.length ? [...insightFilters.dateRange] : [],
+          question: insightFilters.question || ""
+        },
+        insightData: insightData.value || null
+      })
+    );
+  } catch {
+    // Ignore cache persistence errors from storage quota or private mode.
+  }
+};
+
+const restoreInsightCache = () => {
+  try {
+    const raw = localStorage.getItem(INSIGHT_CACHE_KEY);
+    if (!raw) {
+      return;
+    }
+
+    const parsed = JSON.parse(raw);
+    if (parsed?.filters) {
+      insightFilters.dateRange = Array.isArray(parsed.filters.dateRange) ? [...parsed.filters.dateRange] : [];
+      insightFilters.question = parsed.filters.question || "";
+    }
+    if (parsed?.insightData) {
+      insightData.value = parsed.insightData;
+      connected.value = true;
+      activeInsightView.value = "overview";
+    }
+  } catch {
+    localStorage.removeItem(INSIGHT_CACHE_KEY);
   }
 };
 
@@ -487,7 +528,7 @@ const submitQuestion = async () => {
   }
 };
 
-onMounted(loadInsight);
+onMounted(restoreInsightCache);
 </script>
 
 <style scoped>
