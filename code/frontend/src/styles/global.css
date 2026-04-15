@@ -400,6 +400,8 @@ select {
 
 .table-tag {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px 10px;
   border-radius: 999px;
   font-size: 12px;
@@ -418,6 +420,16 @@ select {
 .tag-success {
   background: rgba(21, 128, 61, 0.1);
   color: var(--success);
+}
+
+.tag-info {
+  background: rgba(37, 99, 235, 0.1);
+  color: #2563eb;
+}
+
+.tag-muted {
+  background: rgba(148, 163, 184, 0.14);
+  color: #64748b;
 }
 
 .module-hero {
@@ -614,6 +626,64 @@ select {
   flex-wrap: wrap;
 }
 
+.management-table .table-actions.row-actions {
+  justify-content: center;
+  gap: 4px 10px;
+  opacity: 1;
+}
+
+.management-table .table-actions.row-actions .el-button {
+  min-height: auto;
+  padding: 0;
+  font-size: 13px;
+}
+
+.management-table .el-table td,
+.management-table .el-table th {
+  padding: 7px 0;
+}
+
+.management-table .el-table {
+  font-size: 13px;
+}
+
+.management-table .el-table .cell {
+  text-align: center;
+}
+
+.management-table .el-table .cell .table-tag {
+  margin-inline: auto;
+}
+
+.record-cell {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+}
+
+.record-cell.compact {
+  gap: 3px;
+}
+
+.record-code {
+  color: var(--text-main);
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.record-subtitle {
+  color: var(--text-soft);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.qty-stack.compact {
+  gap: 2px;
+  font-size: 12px;
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -694,4 +764,5 @@ select {
     justify-content: flex-start;
     overflow-x: auto;
   }
+
 }

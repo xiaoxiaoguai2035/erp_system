@@ -37,27 +37,27 @@
         <el-button type="primary" @click="loadDocs">查询</el-button>
       </div>
 
-        <el-table :data="rows" stripe>
-        <el-table-column prop="code" label="单号" min-width="150" />
+        <el-table class="management-table sales-table" :data="rows" stripe>
+        <el-table-column prop="code" label="单号" min-width="138" />
         <el-table-column prop="customerName" label="客户" min-width="150" />
-        <el-table-column label="单据日期" min-width="110">
+        <el-table-column label="单据日期" min-width="90" align="center">
           <template #default="{ row }">{{ formatDate(row.docDate) }}</template>
         </el-table-column>
-        <el-table-column label="交货日期" min-width="110">
+        <el-table-column label="交货日期" min-width="90" align="center">
           <template #default="{ row }">{{ formatDate(row.deliveryDate) }}</template>
         </el-table-column>
-        <el-table-column label="金额(元)" min-width="120">
+        <el-table-column label="金额(元)" min-width="98" align="center">
           <template #default="{ row }">{{ formatMoney(row.totalAmount) }}</template>
         </el-table-column>
-        <el-table-column label="状态" min-width="100">
+        <el-table-column label="状态" min-width="88" align="center">
           <template #default="{ row }">
             <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column :label="currentConfig.operationLabel" min-width="420" fixed="right">
+        <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
+        <el-table-column :label="currentConfig.operationLabel" min-width="240" align="center" class-name="action-cell">
           <template #default="{ row }">
-            <div class="table-actions">
+            <div class="table-actions row-actions">
               <el-button text @click="openDetailDrawer(row.id)">详情</el-button>
               <el-button text :disabled="!canEditDoc(row)" @click="openEditDialog(row.id)">编辑</el-button>
               <el-button text type="success" :disabled="!canApproveDoc(row)" @click="approveDoc(row.id)">审核</el-button>
@@ -1090,6 +1090,10 @@ watch(
 </script>
 
 <style scoped>
+.sales-table :deep(.table-actions.row-actions) {
+  opacity: 1;
+}
+
 .detail-panel {
   margin-top: 18px;
 }

@@ -2189,16 +2189,11 @@ watch(
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px 10px;
-  opacity: 0;
-  transition: opacity 0.18s ease;
+  opacity: 1;
 }
 
 .action-links.multi {
   max-width: 220px;
-}
-
-.production-tabs :deep(.el-table__row:hover .action-links) {
-  opacity: 1;
 }
 
 .action-links :deep(.el-button) {
@@ -2343,10 +2338,6 @@ watch(
   .production-tab-actions {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .action-links {
-    opacity: 1;
   }
 
   .action-links.multi {

@@ -41,13 +41,21 @@
         <el-button type="primary" @click="loadTableData">查询</el-button>
       </div>
 
-      <el-table :data="rows" stripe>
+      <el-table class="management-table" :data="rows" stripe>
+        <el-table-column :label="primaryColumn.label" :min-width="primaryColumn.width">
+          <template #default="{ row }">
+            <strong class="record-code">
+              {{ primaryColumn.formatter ? primaryColumn.formatter(row[primaryColumn.prop], row) : row[primaryColumn.prop] ?? "--" }}
+            </strong>
+          </template>
+        </el-table-column>
         <el-table-column
-          v-for="column in currentColumns"
+          v-for="column in secondaryColumns"
           :key="column.prop"
           :prop="column.prop"
           :label="column.label"
           :min-width="column.width"
+          align="center"
         >
           <template #default="{ row }">
             <span v-if="column.tagClass" class="table-tag" :class="column.tagClass(row)">
@@ -58,10 +66,9 @@
             </span>
           </template>
         </el-table-column>
-
-        <el-table-column label="操作" min-width="220" fixed="right">
+        <el-table-column label="操作" min-width="220" align="center" class-name="action-cell">
           <template #default="{ row }">
-            <div class="table-actions">
+            <div class="table-actions row-actions">
               <el-button text @click="openDetailDrawer(row)">详情</el-button>
               <el-button v-if="currentConfig.formEnabled" text @click="openEditDialog(row)">编辑</el-button>
               <el-button
@@ -504,6 +511,8 @@ const bomChildOptions = computed(() =>
     .filter((item) => isBomChildMaterialType(item.materialType))
     .filter((item) => Number(item.id) !== Number(formModel.productId))
 );
+const primaryColumn = computed(() => currentColumns.value[0] || { prop: "id", label: "信息", width: 140 });
+const secondaryColumns = computed(() => currentColumns.value.slice(1));
 
 const currentColumns = computed(() => {
   if (activeTab.value === "materials") {

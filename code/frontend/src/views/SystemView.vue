@@ -55,22 +55,28 @@
             <el-button type="primary" plain @click="openCreateUserDialog">新增用户</el-button>
           </div>
 
-          <el-table :data="users" stripe>
-            <el-table-column prop="username" label="用户名" min-width="120" />
-            <el-table-column prop="realName" label="姓名" min-width="120" />
-            <el-table-column prop="roleName" label="角色" min-width="140" />
-            <el-table-column prop="phone" label="手机号" min-width="140" />
-            <el-table-column label="状态" min-width="100">
+          <el-table class="management-table" :data="users" stripe>
+            <el-table-column label="用户信息" min-width="180">
+              <template #default="{ row }">
+                <div class="record-cell">
+                  <strong class="record-code">{{ row.username }}</strong>
+                  <span class="record-subtitle">{{ row.realName }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="roleName" label="角色" min-width="120" />
+            <el-table-column prop="phone" label="手机号" min-width="120" />
+            <el-table-column label="状态" min-width="90" align="center">
               <template #default="{ row }">
                 <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="创建时间" min-width="170">
+            <el-table-column label="创建时间" min-width="150" align="center">
               <template #default="{ row }">{{ formatDateTime(row.createdAt) }}</template>
             </el-table-column>
-            <el-table-column label="操作" min-width="320" fixed="right">
+            <el-table-column label="操作" min-width="260" align="center" class-name="action-cell">
               <template #default="{ row }">
-                <div class="table-actions">
+                <div class="table-actions row-actions">
                   <el-button text @click="openEditUserDialog(row.id)">编辑</el-button>
                   <el-button text @click="toggleUserStatus(row)">
                     {{ row.status === "enabled" ? "停用" : "启用" }}
@@ -107,18 +113,24 @@
             <el-button type="primary" plain @click="openCreateRoleDialog">新增角色</el-button>
           </div>
 
-          <el-table :data="filteredRoles" stripe>
-            <el-table-column prop="code" label="角色编码" min-width="140" />
-            <el-table-column prop="name" label="角色名称" min-width="160" />
-            <el-table-column label="状态" min-width="100">
+          <el-table class="management-table" :data="filteredRoles" stripe>
+            <el-table-column label="角色信息" min-width="180">
+              <template #default="{ row }">
+                <div class="record-cell">
+                  <strong class="record-code">{{ row.code }}</strong>
+                  <span class="record-subtitle">{{ row.name }}</span>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="状态" min-width="90" align="center">
               <template #default="{ row }">
                 <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="remark" label="备注" min-width="220" show-overflow-tooltip />
-            <el-table-column label="操作" min-width="260" fixed="right">
+            <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
+            <el-table-column label="操作" min-width="220" align="center" class-name="action-cell">
               <template #default="{ row }">
-                <div class="table-actions">
+                <div class="table-actions row-actions">
                   <el-button text @click="openEditRoleDialog(row.id)">编辑</el-button>
                   <el-button text type="success" @click="openRoleMenusDialog(row)">分配菜单</el-button>
                   <el-button text type="danger" @click="removeRole(row)">删除</el-button>
@@ -136,6 +148,7 @@
           </div>
 
           <el-table
+            class="management-table"
             :data="filteredMenuTree"
             row-key="id"
             stripe
@@ -147,14 +160,14 @@
             <el-table-column prop="component" label="组件" min-width="180" show-overflow-tooltip />
             <el-table-column prop="menuType" label="类型" min-width="100" />
             <el-table-column prop="permissionCode" label="权限编码" min-width="180" show-overflow-tooltip />
-            <el-table-column label="状态" min-width="100">
+            <el-table-column label="状态" min-width="90" align="center">
               <template #default="{ row }">
                 <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" min-width="260" fixed="right">
+            <el-table-column label="操作" min-width="220" align="center" class-name="action-cell">
               <template #default="{ row }">
-                <div class="table-actions">
+                <div class="table-actions row-actions">
                   <el-button text @click="openCreateMenuDialog(row.id)">新增下级</el-button>
                   <el-button text @click="openEditMenuDialog(row.id)">编辑</el-button>
                   <el-button text type="danger" @click="removeMenu(row)">删除</el-button>

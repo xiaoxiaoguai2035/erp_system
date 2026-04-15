@@ -107,8 +107,40 @@ export const getTagClass = (value) => {
   const text = String(value || "").toLowerCase();
 
   if (
-    text.includes("disable") ||
+    text.includes("in_progress") ||
+    text.includes("执行中") ||
+    text.includes("running")
+  ) {
+    return "tag-info";
+  }
+
+  if (
+    text.includes("completed") ||
+    text.includes("finish") ||
+    text.includes("已完成")
+  ) {
+    return "tag-success";
+  }
+
+  if (
     text.includes("close") ||
+    text.includes("closed") ||
+    text.includes("已关闭")
+  ) {
+    return "tag-muted";
+  }
+
+  if (
+    text.includes("draft") ||
+    text.includes("partial") ||
+    text.includes("草稿") ||
+    text.includes("部分完成")
+  ) {
+    return "tag-warning";
+  }
+
+  if (
+    text.includes("disable") ||
     text.includes("risk") ||
     text.includes("warn") ||
     text.includes("danger") ||
@@ -123,8 +155,8 @@ export const getTagClass = (value) => {
     text.includes("enable") ||
     text.includes("success") ||
     text.includes("normal") ||
-    text.includes("finish") ||
     text.includes("up") ||
+    text.includes("审核") ||
     text.includes("启用") ||
     text.includes("正常")
   ) {

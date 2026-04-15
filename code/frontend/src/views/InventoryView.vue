@@ -70,65 +70,81 @@
         </el-select>
       </div>
 
-      <el-table v-if="activeTab === 'stocks'" :data="rows" stripe>
-        <el-table-column prop="warehouseName" label="仓库" min-width="130" />
-        <el-table-column prop="materialCode" label="物料编码" min-width="120" />
-        <el-table-column prop="materialName" label="物料名称" min-width="160" />
-        <el-table-column prop="unitCode" label="单位" min-width="90" />
-        <el-table-column prop="lotNo" label="批次号" min-width="140" />
-        <el-table-column label="库存数量" min-width="110">
-          <template #default="{ row }">{{ formatNumber(row.qty) }}</template>
+      <el-table v-if="activeTab === 'stocks'" class="management-table" :data="rows" stripe>
+        <el-table-column label="库存信息" min-width="240">
+          <template #default="{ row }">
+            <div class="record-cell">
+              <strong class="record-code">{{ row.materialName }}</strong>
+              <span class="record-subtitle">{{ row.materialCode }} / {{ row.lotNo || "无批次" }}</span>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column label="锁定数量" min-width="110">
-          <template #default="{ row }">{{ formatNumber(row.lockedQty) }}</template>
+        <el-table-column prop="warehouseName" label="仓库" min-width="120" />
+        <el-table-column prop="unitCode" label="单位" min-width="72" align="center" />
+        <el-table-column label="数量" min-width="130" align="center">
+          <template #default="{ row }">
+            <div class="qty-stack compact">
+              <span><em>库存</em>{{ formatNumber(row.qty) }}</span>
+              <span><em>可用</em>{{ formatNumber(row.availableQty) }}</span>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column label="可用数量" min-width="110">
-          <template #default="{ row }">{{ formatNumber(row.availableQty) }}</template>
-        </el-table-column>
-        <el-table-column label="安全库存" min-width="110">
-          <template #default="{ row }">{{ formatNumber(row.safetyStock) }}</template>
-        </el-table-column>
-        <el-table-column label="状态" min-width="110">
+        <el-table-column label="状态" min-width="90" align="center">
           <template #default="{ row }">
             <span class="table-tag" :class="getTagClass(row.stockStatus)">{{ formatStatusLabel(row.stockStatus) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" min-width="160">
-          <template #default="{ row }">{{ formatDateTime(row.updatedAt) }}</template>
+        <el-table-column label="补充" min-width="180">
+          <template #default="{ row }">
+            <div class="record-cell compact">
+              <span class="record-subtitle">安全库存 {{ formatNumber(row.safetyStock) }}</span>
+              <span class="record-subtitle">锁定 {{ formatNumber(row.lockedQty) }}</span>
+              <span class="record-subtitle">{{ formatDateTime(row.updatedAt) }}</span>
+            </div>
+          </template>
         </el-table-column>
       </el-table>
 
-      <el-table v-else :data="rows" stripe>
-        <el-table-column v-if="activeTab === 'docs'" prop="docTypeName" label="类型" min-width="120" />
-        <el-table-column prop="code" label="单号" min-width="150" />
-        <el-table-column prop="warehouseName" label="主仓库" min-width="130" />
-        <el-table-column
-          v-if="activeTab === 'transfers' || activeTab === 'docs'"
-          prop="targetWarehouseName"
-          label="目标仓库"
-          min-width="130"
-        />
-        <el-table-column label="业务日期" min-width="120">
+      <el-table v-else class="management-table" :data="rows" stripe>
+        <el-table-column label="单据信息" min-width="220">
+          <template #default="{ row }">
+            <div class="record-cell">
+              <strong class="record-code">{{ row.code }}</strong>
+              <span class="record-subtitle">{{ row.docTypeName || currentConfig.shortTitle }}</span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="仓库流向" min-width="170">
+          <template #default="{ row }">
+            <div class="record-cell compact">
+              <span class="record-subtitle">主仓库 {{ row.warehouseName || "--" }}</span>
+              <span v-if="activeTab === 'transfers' || activeTab === 'docs'" class="record-subtitle">
+                目标仓库 {{ row.targetWarehouseName || "--" }}
+              </span>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column label="业务日期" min-width="100" align="center">
           <template #default="{ row }">{{ formatDate(row.bizDate) }}</template>
         </el-table-column>
-        <el-table-column label="明细数" min-width="90">
-          <template #default="{ row }">{{ formatNumber(row.itemCount, "0") }}</template>
+        <el-table-column label="统计" min-width="150" align="center">
+          <template #default="{ row }">
+            <div class="qty-stack compact">
+              <span><em>明细</em>{{ formatNumber(row.itemCount, "0") }}</span>
+              <span><em>数量</em>{{ formatNumber(row.totalQty) }}</span>
+              <span><em>金额</em>{{ formatMoney(row.totalAmount) }}</span>
+            </div>
+          </template>
         </el-table-column>
-        <el-table-column label="总数量" min-width="110">
-          <template #default="{ row }">{{ formatNumber(row.totalQty) }}</template>
-        </el-table-column>
-        <el-table-column label="总金额" min-width="120">
-          <template #default="{ row }">{{ formatMoney(row.totalAmount) }}</template>
-        </el-table-column>
-        <el-table-column label="状态" min-width="100">
+        <el-table-column label="状态" min-width="96" align="center">
           <template #default="{ row }">
             <span class="table-tag" :class="getTagClass(row.status)">{{ formatStatusLabel(row.status) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="remark" label="备注" min-width="180" show-overflow-tooltip />
-        <el-table-column label="操作" min-width="220" fixed="right">
+        <el-table-column prop="remark" label="备注" min-width="160" show-overflow-tooltip />
+        <el-table-column label="操作" min-width="180" align="center" class-name="action-cell">
           <template #default="{ row }">
-            <div class="table-actions">
+            <div class="table-actions row-actions">
               <el-button text @click="openDetailDrawer(row.id)">详情</el-button>
               <el-button
                 v-if="currentConfig.approveEnabled && String(row.status || '').toLowerCase() === 'draft'"
@@ -806,6 +822,10 @@ small {
   display: block;
   margin-top: 6px;
   color: var(--text-soft);
+}
+
+.qty-stack.compact {
+  justify-items: center;
 }
 
 .link-actions {
