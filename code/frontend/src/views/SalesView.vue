@@ -210,7 +210,7 @@
 
     <el-dialog v-model="outStockVisible" title="销售订单出库" width="960px">
       <div class="form-grid">
-        <el-select v-model="outStockForm.warehouseId" placeholder="出库仓库">
+        <el-select v-model="outStockForm.warehouseId" placeholder="出库仓库" @change="handleOutStockWarehouseChange">
           <el-option v-for="item in warehouseOptions" :key="item.id" :label="item.name" :value="item.id" />
         </el-select>
         <el-date-picker v-model="outStockForm.bizDate" type="date" value-format="YYYY-MM-DD" placeholder="业务日期" />
@@ -231,14 +231,30 @@
         <el-table-column label="剩余可发货" min-width="110">
           <template #default="{ row }">{{ formatNumber(row.remainQty) }}</template>
         </el-table-column>
+        <el-table-column label="仓库可用库存" min-width="120">
+          <template #default="{ row }">{{ formatNumber(getOutStockAvailableQty(row), "0") }}</template>
+        </el-table-column>
         <el-table-column label="出库数量" min-width="120">
           <template #default="{ row }">
-            <el-input-number v-model="row.qty" :min="0" :precision="2" controls-position="right" />
+            <el-input-number
+              v-model="row.qty"
+              :min="0"
+              :max="Math.min(Number(row.remainQty || 0), getOutStockAvailableQty(row))"
+              :precision="2"
+              controls-position="right"
+            />
           </template>
         </el-table-column>
         <el-table-column label="批次号" min-width="150">
           <template #default="{ row }">
-            <el-input v-model="row.lotNo" placeholder="可选批次号" />
+            <el-select v-model="row.lotNo" clearable filterable placeholder="自动匹配或手动选择">
+              <el-option
+                v-for="item in getOutStockLotOptions(row)"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+              />
+            </el-select>
           </template>
         </el-table-column>
       </el-table>
@@ -320,6 +336,7 @@ import {
   createSalesOrder,
   createSalesQuote,
   fetchCustomerList,
+  fetchInventoryStocks,
   fetchMaterialList,
   fetchSalesOrderDetail,
   fetchSalesOrders,
@@ -395,6 +412,8 @@ const warehouseOptions = ref([]);
 const outStockVisible = ref(false);
 const outStockOrderId = ref(null);
 const outStockDetail = ref(null);
+const outStockStockMap = ref({});
+const outStockLotMap = ref({});
 const planConvertVisible = ref(false);
 const planConvertOrder = ref(null);
 const planConvertItems = ref([]);
@@ -494,6 +513,71 @@ const patchForm = (payload = {}) => {
 
 const patchOutStockForm = (payload = {}) => {
   Object.assign(outStockForm, createEmptyOutStockForm(), payload);
+};
+
+const getOutStockAvailableQty = (item) => {
+  const key = `${item.materialId}::${outStockForm.warehouseId || ""}`;
+  return Number(outStockStockMap.value[key] || 0);
+};
+
+const syncOutStockQtyByAvailableStock = () => {
+  outStockForm.items = outStockForm.items.map((item) => {
+    const stockQty = getOutStockAvailableQty(item);
+    const nextQty = Math.min(Number(item.remainQty || 0), stockQty);
+    return {
+      ...item,
+      qty: nextQty
+    };
+  });
+};
+
+const loadOutStockInventorySnapshot = async (warehouseId) => {
+  if (!warehouseId || !outStockForm.items.length) {
+    outStockStockMap.value = {};
+    outStockLotMap.value = {};
+    return;
+  }
+
+  const stockPage = await fetchInventoryStocks({
+    pageNo: 1,
+    pageSize: 500,
+    warehouseId
+  });
+
+  const stockMap = {};
+  const lotMap = {};
+  for (const stock of stockPage.records || []) {
+    const key = `${stock.materialId}::${warehouseId}`;
+    const availableQty = Number(stock.availableQty ?? stock.qty ?? 0);
+    stockMap[key] = (stockMap[key] || 0) + availableQty;
+    if (!lotMap[key]) {
+      lotMap[key] = [];
+    }
+    lotMap[key].push({
+      value: stock.lotNo || "",
+      label: stock.lotNo || "无批次",
+      availableQty
+    });
+  }
+  outStockStockMap.value = stockMap;
+  outStockLotMap.value = lotMap;
+};
+
+const getOutStockLotOptions = (item) => {
+  const key = `${item.materialId}::${outStockForm.warehouseId || ""}`;
+  return outStockLotMap.value[key] || [];
+};
+
+const handleOutStockWarehouseChange = async (warehouseId) => {
+  await loadOutStockInventorySnapshot(warehouseId);
+  outStockForm.items = outStockForm.items.map((item) => {
+    const lotOptions = getOutStockLotOptions(item);
+    return {
+      ...item,
+      lotNo: lotOptions.length === 1 ? lotOptions[0].value : ""
+    };
+  });
+  syncOutStockQtyByAvailableStock();
 };
 
 const patchPlanConvertForm = (payload = {}) => {
@@ -880,11 +964,24 @@ const openOutStockDialog = async (id) => {
 
     outStockOrderId.value = id;
     outStockDetail.value = detail;
+    const preferredWarehouseId =
+      availableItems.find((item) => Number(item.remainQty || 0) > 0)?.materialId &&
+      warehouseOptions.value.find((item) => String(item.name || "").includes("成品"))?.id;
     patchOutStockForm({
+      warehouseId: preferredWarehouseId,
       bizDate: getToday(),
       remark: `${detail.code} 出库`,
       items: availableItems
     });
+    await loadOutStockInventorySnapshot(preferredWarehouseId);
+    outStockForm.items = outStockForm.items.map((item) => {
+      const lotOptions = getOutStockLotOptions(item);
+      return {
+        ...item,
+        lotNo: lotOptions.length === 1 ? lotOptions[0].value : ""
+      };
+    });
+    syncOutStockQtyByAvailableStock();
     outStockVisible.value = true;
   } catch (error) {
     ElMessage.error(error.message || "销售出库详情加载失败");
@@ -911,6 +1008,10 @@ const submitOutStock = async () => {
     const qty = Number(item.qty || 0);
     if (qty > Number(item.remainQty || 0)) {
       ElMessage.warning(`产品 ${item.materialName} 的出库数量不能超过剩余可发货数量`);
+      return;
+    }
+    if (qty > getOutStockAvailableQty(item)) {
+      ElMessage.warning(`产品 ${item.materialName} 在所选仓库中的可用库存不足`);
       return;
     }
   }

@@ -35,11 +35,14 @@ import com.dongjian.erp.manufacturingerpsystem.modules.basic.vo.RouteDetail;
 import com.dongjian.erp.manufacturingerpsystem.modules.basic.vo.RouteListItem;
 import com.dongjian.erp.manufacturingerpsystem.modules.basic.vo.SupplierListItem;
 import com.dongjian.erp.manufacturingerpsystem.modules.basic.vo.WarehouseListItem;
+import com.dongjian.erp.manufacturingerpsystem.modules.production.entity.PrdReport;
+import com.dongjian.erp.manufacturingerpsystem.modules.production.mapper.PrdReportMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -57,6 +60,7 @@ public class BasicDataServiceImpl implements BasicDataService {
     private final BasBomItemMapper basBomItemMapper;
     private final BasProcessRouteMapper basProcessRouteMapper;
     private final BasProcessRouteItemMapper basProcessRouteItemMapper;
+    private final PrdReportMapper prdReportMapper;
 
     public BasicDataServiceImpl(BasMaterialMapper basMaterialMapper,
                                 BasCustomerMapper basCustomerMapper,
@@ -65,7 +69,8 @@ public class BasicDataServiceImpl implements BasicDataService {
                                 BasBomMapper basBomMapper,
                                 BasBomItemMapper basBomItemMapper,
                                 BasProcessRouteMapper basProcessRouteMapper,
-                                BasProcessRouteItemMapper basProcessRouteItemMapper) {
+                                BasProcessRouteItemMapper basProcessRouteItemMapper,
+                                PrdReportMapper prdReportMapper) {
         this.basMaterialMapper = basMaterialMapper;
         this.basCustomerMapper = basCustomerMapper;
         this.basSupplierMapper = basSupplierMapper;
@@ -74,6 +79,7 @@ public class BasicDataServiceImpl implements BasicDataService {
         this.basBomItemMapper = basBomItemMapper;
         this.basProcessRouteMapper = basProcessRouteMapper;
         this.basProcessRouteItemMapper = basProcessRouteItemMapper;
+        this.prdReportMapper = prdReportMapper;
     }
 
     @Override
@@ -460,8 +466,7 @@ public class BasicDataServiceImpl implements BasicDataService {
         }
         fillRoute(entity, request);
         basProcessRouteMapper.updateById(entity);
-        basProcessRouteItemMapper.delete(new LambdaQueryWrapper<BasProcessRouteItem>().eq(BasProcessRouteItem::getRouteId, id));
-        saveRouteItems(id, request.getItems());
+        syncRouteItems(id, request.getItems());
     }
 
     @Override
@@ -500,6 +505,8 @@ public class BasicDataServiceImpl implements BasicDataService {
     @Transactional(rollbackFor = Exception.class)
     public void deleteRoute(Long id) {
         requireRoute(id);
+        List<BasProcessRouteItem> routeItems = loadRouteItems(id);
+        validateRouteItemsNotReferenced(routeItems.stream().map(BasProcessRouteItem::getId).toList());
         basProcessRouteItemMapper.delete(new LambdaQueryWrapper<BasProcessRouteItem>().eq(BasProcessRouteItem::getRouteId, id));
         basProcessRouteMapper.deleteById(id);
     }
@@ -790,6 +797,59 @@ public class BasicDataServiceImpl implements BasicDataService {
             item.setWorkCenter(request.getWorkCenter());
             item.setSortNo(request.getSortNo() != null ? request.getSortNo() : 0);
             basProcessRouteItemMapper.insert(item);
+        }
+    }
+
+    private void syncRouteItems(Long routeId, List<RouteSaveRequest.RouteItemRequest> requests) {
+        List<BasProcessRouteItem> existingItems = loadRouteItems(routeId);
+        Map<Long, BasProcessRouteItem> existingItemMap = existingItems.stream()
+                .collect(Collectors.toMap(BasProcessRouteItem::getId, item -> item, (left, right) -> left, HashMap::new));
+
+        Set<Long> requestItemIds = requests.stream()
+                .map(RouteSaveRequest.RouteItemRequest::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        for (RouteSaveRequest.RouteItemRequest request : requests) {
+            if (request.getId() != null && !existingItemMap.containsKey(request.getId())) {
+                throw new BusinessException(400, "工艺工序明细不存在或不属于当前工艺路线");
+            }
+        }
+
+        List<BasProcessRouteItem> deleteCandidates = existingItems.stream()
+                .filter(item -> !requestItemIds.contains(item.getId()))
+                .toList();
+        validateRouteItemsNotReferenced(deleteCandidates.stream().map(BasProcessRouteItem::getId).toList());
+        if (!deleteCandidates.isEmpty()) {
+            basProcessRouteItemMapper.deleteBatchIds(deleteCandidates.stream().map(BasProcessRouteItem::getId).toList());
+        }
+
+        for (RouteSaveRequest.RouteItemRequest request : requests) {
+            BasProcessRouteItem item = request.getId() != null ? existingItemMap.get(request.getId()) : new BasProcessRouteItem();
+            item.setRouteId(routeId);
+            item.setProcessCode(request.getProcessCode());
+            item.setProcessName(request.getProcessName());
+            item.setStandardHours(request.getStandardHours());
+            item.setWorkCenter(request.getWorkCenter());
+            item.setSortNo(request.getSortNo() != null ? request.getSortNo() : 0);
+
+            if (request.getId() != null) {
+                basProcessRouteItemMapper.updateById(item);
+            } else {
+                basProcessRouteItemMapper.insert(item);
+            }
+        }
+    }
+
+    private void validateRouteItemsNotReferenced(List<Long> routeItemIds) {
+        if (routeItemIds == null || routeItemIds.isEmpty()) {
+            return;
+        }
+
+        Long referencedCount = prdReportMapper.selectCount(new LambdaQueryWrapper<PrdReport>()
+                .in(PrdReport::getProcessItemId, routeItemIds));
+        if (referencedCount != null && referencedCount > 0) {
+            throw new BusinessException(409, "工艺工序已被报工记录引用，不能删除；请保留原工序或新增工序");
         }
     }
 }

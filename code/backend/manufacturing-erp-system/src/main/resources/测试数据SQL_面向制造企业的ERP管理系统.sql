@@ -91,14 +91,14 @@ INSERT INTO `bas_warehouse` (`id`, `code`, `name`, `warehouse_type`, `manager_na
 (4, 'LINE01', '线边仓', '线边仓', '刘洋', 'enabled');
 
 INSERT INTO `bas_material` (`id`, `code`, `name`, `spec`, `material_type`, `unit_code`, `safety_stock`, `batch_enabled`, `default_warehouse_id`, `status`) VALUES
-(1, 'FG100', '智能控制器A', 'AC-100', '成品', 'pcs', 20.0000, 1, 2, 'enabled'),
-(2, 'FG200', '伺服驱动器B', 'SD-200', '成品', 'pcs', 15.0000, 1, 2, 'enabled'),
-(3, 'SF100', '控制板组件', 'PCB-A', '半成品', 'pcs', 10.0000, 1, 1, 'enabled'),
-(4, 'RM101', 'MCU主控芯片', 'STM32F407', '原料', 'pcs', 200.0000, 1, 1, 'enabled'),
-(5, 'RM102', '电容套件', 'CAP-KIT', '原料', 'set', 500.0000, 0, 1, 'enabled'),
-(6, 'RM103', '铝合金壳体', 'CASE-A', '原料', 'pcs', 50.0000, 0, 1, 'enabled'),
-(7, 'RM104', '线束总成', 'HARNESS-A', '原料', 'pcs', 60.0000, 0, 1, 'enabled'),
-(8, 'RM105', '显示模组', 'LCD-5.0', '原料', 'pcs', 20.0000, 1, 1, 'enabled');
+(1, 'FG100', '智能控制器A', 'AC-100', 'finished', 'pcs', 20.0000, 1, 2, 'enabled'),
+(2, 'FG200', '伺服驱动器B', 'SD-200', 'finished', 'pcs', 15.0000, 1, 2, 'enabled'),
+(3, 'SF100', '控制板组件', 'PCB-A', 'semi', 'pcs', 10.0000, 1, 1, 'enabled'),
+(4, 'RM101', 'MCU主控芯片', 'STM32F407', 'raw', 'pcs', 200.0000, 1, 1, 'enabled'),
+(5, 'RM102', '电容套件', 'CAP-KIT', 'raw', 'set', 500.0000, 0, 1, 'enabled'),
+(6, 'RM103', '铝合金壳体', 'CASE-A', 'raw', 'pcs', 50.0000, 0, 1, 'enabled'),
+(7, 'RM104', '线束总成', 'HARNESS-A', 'raw', 'pcs', 60.0000, 0, 1, 'enabled'),
+(8, 'RM105', '显示模组', 'LCD-5.0', 'raw', 'pcs', 20.0000, 1, 1, 'enabled');
 
 INSERT INTO `bas_customer` (`id`, `code`, `name`, `contact`, `phone`, `address`, `status`) VALUES
 (1, 'CUST001', '华东自动化设备有限公司', '李总', '021-66010001', '上海市嘉定区安亭工业园 88 号', 'enabled'),

@@ -86,6 +86,23 @@ export const formatStatusLabel = (value) => {
   return labelMap[String(value).toLowerCase()] || value;
 };
 
+export const formatMaterialType = (value) => {
+  if (!value) {
+    return "--";
+  }
+
+  const labelMap = {
+    raw: "原料",
+    semi: "半成品",
+    finished: "成品",
+    "原料": "原料",
+    "半成品": "半成品",
+    "成品": "成品"
+  };
+
+  return labelMap[String(value).trim().toLowerCase()] || labelMap[String(value).trim()] || value;
+};
+
 export const getTagClass = (value) => {
   const text = String(value || "").toLowerCase();
 

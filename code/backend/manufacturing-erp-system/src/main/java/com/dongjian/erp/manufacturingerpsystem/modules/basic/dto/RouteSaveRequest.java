@@ -54,6 +54,8 @@ public class RouteSaveRequest {
 
     public static class RouteItemRequest {
 
+        private Long id;
+
         @NotBlank(message = "工序编号不能为空")
         private String processCode;
 
@@ -63,6 +65,14 @@ public class RouteSaveRequest {
         private BigDecimal standardHours;
         private String workCenter;
         private Integer sortNo;
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
+        }
 
         public String getProcessCode() {
             return processCode;

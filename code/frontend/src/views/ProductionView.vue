@@ -508,32 +508,87 @@
 
     <el-dialog v-model="reportVisible" title="工单报工" width="720px">
       <div class="form-grid">
-        <el-select v-model="reportForm.workOrderId" disabled placeholder="工单">
-          <el-option
-            v-if="reportWorkOrderRecord"
-            :label="`${reportWorkOrderRecord.code} / ${reportWorkOrderRecord.materialName || '未命名产品'}`"
-            :value="reportWorkOrderRecord.id"
+        <div class="field-stack">
+          <span class="field-label">工单</span>
+          <el-select v-model="reportForm.workOrderId" disabled placeholder="工单">
+            <el-option
+              v-if="reportWorkOrderRecord"
+              :label="`${reportWorkOrderRecord.code} / ${reportWorkOrderRecord.materialName || '未命名产品'}`"
+              :value="reportWorkOrderRecord.id"
+            />
+          </el-select>
+        </div>
+
+        <div class="field-stack">
+          <span class="field-label">工序</span>
+          <el-select v-model="reportForm.processItemId" filterable placeholder="选择工序">
+            <el-option
+              v-for="item in reportProcessOptions"
+              :key="item.id"
+              :label="`${item.processCode} / ${item.processName}`"
+              :value="item.id"
+            />
+          </el-select>
+        </div>
+
+        <div class="field-stack">
+          <span class="field-label">报工时间</span>
+          <el-date-picker
+            v-model="reportForm.reportDate"
+            type="datetime"
+            value-format="YYYY-MM-DDTHH:mm:ss"
+            placeholder="报工时间"
           />
-        </el-select>
-        <el-select v-model="reportForm.processItemId" filterable placeholder="选择工序">
-          <el-option
-            v-for="item in reportProcessOptions"
-            :key="item.id"
-            :label="`${item.processCode} / ${item.processName}`"
-            :value="item.id"
+        </div>
+
+        <div class="field-stack">
+          <span class="field-label">报工人</span>
+          <el-input v-model="reportForm.reporterName" placeholder="报工人" />
+        </div>
+      </div>
+
+      <div class="report-qty-note">
+        <span>数量关系：报工数量 = 合格数量 + 不良数量</span>
+      </div>
+
+      <div class="report-qty-grid">
+        <div class="field-stack">
+          <span class="field-label">报工数量</span>
+          <el-input-number
+            v-model="reportForm.reportQty"
+            :min="0"
+            :precision="2"
+            controls-position="right"
+            @change="syncReportDefectiveQty"
           />
-        </el-select>
-        <el-date-picker
-          v-model="reportForm.reportDate"
-          type="datetime"
-          value-format="YYYY-MM-DDTHH:mm:ss"
-          placeholder="报工时间"
-        />
-        <el-input v-model="reportForm.reporterName" placeholder="报工人" />
-        <el-input-number v-model="reportForm.reportQty" :min="0" :precision="2" controls-position="right" placeholder="报工数量" />
-        <el-input-number v-model="reportForm.qualifiedQty" :min="0" :precision="2" controls-position="right" placeholder="合格数量" />
-        <el-input-number v-model="reportForm.defectiveQty" :min="0" :precision="2" controls-position="right" placeholder="不良数量" />
-        <el-input v-model="reportForm.remark" placeholder="报工备注" class="full-span" />
+        </div>
+
+        <div class="field-stack">
+          <span class="field-label">合格数量</span>
+          <el-input-number
+            v-model="reportForm.qualifiedQty"
+            :min="0"
+            :precision="2"
+            controls-position="right"
+            @change="syncReportDefectiveQty"
+          />
+        </div>
+
+        <div class="field-stack">
+          <span class="field-label">不良数量</span>
+          <el-input-number
+            v-model="reportForm.defectiveQty"
+            :min="0"
+            :precision="2"
+            controls-position="right"
+            :disabled="true"
+          />
+        </div>
+      </div>
+
+      <div class="field-stack report-remark">
+        <span class="field-label">报工备注</span>
+        <el-input v-model="reportForm.remark" placeholder="报工备注" />
       </div>
 
       <template #footer>
@@ -965,6 +1020,15 @@ function patchFinishForm(payload = {}) {
 
 function patchReportForm(payload = {}) {
   Object.assign(reportForm, createEmptyReportForm(), payload);
+  syncReportDefectiveQty();
+}
+
+function syncReportDefectiveQty() {
+  const reportQty = Math.max(Number(reportForm.reportQty || 0), 0);
+  const qualifiedQty = Math.max(Number(reportForm.qualifiedQty || 0), 0);
+  const normalizedQualifiedQty = Math.min(qualifiedQty, reportQty);
+  reportForm.qualifiedQty = normalizedQualifiedQty;
+  reportForm.defectiveQty = Number((reportQty - normalizedQualifiedQty).toFixed(2));
 }
 
 function isPositiveRouteId(value) {
@@ -1956,6 +2020,36 @@ watch(
   min-width: 0;
 }
 
+.field-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.report-qty-note {
+  margin: 16px 0 12px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(79, 70, 229, 0.06);
+  color: var(--primary);
+  font-size: 13px;
+}
+
+.report-qty-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.report-remark {
+  margin-top: 14px;
+}
+
 .mrp-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2027,6 +2121,10 @@ watch(
 
 @media (max-width: 960px) {
   .report-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .report-qty-grid {
     grid-template-columns: 1fr;
   }
 

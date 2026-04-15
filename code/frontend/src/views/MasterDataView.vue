@@ -93,29 +93,56 @@
 
     <el-dialog v-model="formVisible" :title="dialogTitle" :width="dialogWidth">
       <div v-if="editingType === 'materials'" class="form-grid">
-        <el-input v-model="formModel.code" placeholder="物料编码" />
-        <el-input v-model="formModel.name" placeholder="物料名称" />
-        <el-input v-model="formModel.spec" placeholder="规格型号" />
-        <el-select v-model="formModel.materialType" placeholder="物料类型">
-          <el-option label="原料" value="raw" />
-          <el-option label="半成品" value="semi" />
-          <el-option label="成品" value="finished" />
-        </el-select>
-        <el-select v-model="formModel.unitCode" placeholder="计量单位">
-          <el-option v-for="item in materialUnits" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-input-number v-model="formModel.safetyStock" :min="0" :precision="2" controls-position="right" placeholder="安全库存" />
-        <el-select v-model="formModel.batchEnabled" placeholder="批次管理">
-          <el-option label="启用" :value="1" />
-          <el-option label="关闭" :value="0" />
-        </el-select>
-        <el-select v-model="formModel.defaultWarehouseId" clearable placeholder="默认仓库">
-          <el-option v-for="item in warehouseOptions" :key="item.id" :label="item.name" :value="item.id" />
-        </el-select>
-        <el-select v-model="formModel.status" placeholder="状态">
-          <el-option label="启用" value="enabled" />
-          <el-option label="停用" value="disabled" />
-        </el-select>
+        <div class="field-stack">
+          <span class="field-label">物料编码</span>
+          <el-input v-model="formModel.code" placeholder="物料编码" />
+        </div>
+        <div class="field-stack">
+          <span class="field-label">物料名称</span>
+          <el-input v-model="formModel.name" placeholder="物料名称" />
+        </div>
+        <div class="field-stack">
+          <span class="field-label">规格型号</span>
+          <el-input v-model="formModel.spec" placeholder="规格型号" />
+        </div>
+        <div class="field-stack">
+          <span class="field-label">物料类型</span>
+          <el-select v-model="formModel.materialType" placeholder="物料类型">
+            <el-option label="原料" value="raw" />
+            <el-option label="半成品" value="semi" />
+            <el-option label="成品" value="finished" />
+          </el-select>
+        </div>
+        <div class="field-stack">
+          <span class="field-label">计量单位</span>
+          <el-select v-model="formModel.unitCode" placeholder="计量单位">
+            <el-option v-for="item in materialUnits" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </div>
+        <div class="field-stack">
+          <span class="field-label">安全库存</span>
+          <el-input-number v-model="formModel.safetyStock" :min="0" :precision="2" controls-position="right" placeholder="安全库存" />
+        </div>
+        <div class="field-stack">
+          <span class="field-label">批次管理</span>
+          <el-select v-model="formModel.batchEnabled" placeholder="批次管理">
+            <el-option label="启用" :value="1" />
+            <el-option label="关闭" :value="0" />
+          </el-select>
+        </div>
+        <div class="field-stack">
+          <span class="field-label">默认仓库</span>
+          <el-select v-model="formModel.defaultWarehouseId" clearable placeholder="默认仓库">
+            <el-option v-for="item in warehouseOptions" :key="item.id" :label="item.name" :value="item.id" />
+          </el-select>
+        </div>
+        <div class="field-stack">
+          <span class="field-label">物料状态</span>
+          <el-select v-model="formModel.status" placeholder="物料状态">
+            <el-option label="启用" value="enabled" />
+            <el-option label="停用" value="disabled" />
+          </el-select>
+        </div>
       </div>
 
       <div v-else-if="editingType === 'customers' || editingType === 'suppliers'" class="form-grid">
@@ -171,7 +198,7 @@
             <template #default="{ row }">
               <el-select v-model="row.materialId" filterable placeholder="选择子项物料">
                 <el-option
-                  v-for="item in materialOptions"
+                  v-for="item in bomChildOptions"
                   :key="item.id"
                   :label="`${item.code} / ${item.name}`"
                   :value="item.id"
@@ -344,6 +371,7 @@ import {
 import PagePanel from "@/components/PagePanel.vue";
 import {
   formatDate,
+  formatMaterialType,
   formatNumber,
   formatStatusLabel,
   getTagClass
@@ -462,10 +490,20 @@ const currentConfig = computed(() => configMap[activeTab.value]);
 const dialogTitle = computed(() => `${editingId.value ? "编辑" : "新增"}${currentConfig.value.title}`);
 const detailTitle = computed(() => `${currentConfig.value.title}详情`);
 const dialogWidth = computed(() => (["boms", "routes"].includes(editingType.value) ? "980px" : "720px"));
+const normalizeMaterialType = (value) => String(value || "").trim().toLowerCase();
+const isProductMaterialType = (value) =>
+  ["finished", "semi", "成品", "半成品"].includes(normalizeMaterialType(value) || String(value || "").trim());
+const isBomChildMaterialType = (value) =>
+  ["raw", "semi", "原料", "半成品"].includes(normalizeMaterialType(value) || String(value || "").trim());
 const bomProductOptions = computed(() =>
-  materialOptions.value.filter((item) => ["finished", "semi"].includes(String(item.materialType || "").toLowerCase()))
+  materialOptions.value.filter((item) => isProductMaterialType(item.materialType))
 );
 const routeProductOptions = computed(() => bomProductOptions.value);
+const bomChildOptions = computed(() =>
+  materialOptions.value
+    .filter((item) => isBomChildMaterialType(item.materialType))
+    .filter((item) => Number(item.id) !== Number(formModel.productId))
+);
 
 const currentColumns = computed(() => {
   if (activeTab.value === "materials") {
@@ -473,7 +511,7 @@ const currentColumns = computed(() => {
       { prop: "code", label: "物料编码", width: 130 },
       { prop: "name", label: "物料名称", width: 160 },
       { prop: "spec", label: "规格", width: 120 },
-      { prop: "materialType", label: "类型", width: 100 },
+      { prop: "materialType", label: "类型", width: 100, formatter: formatMaterialType },
       { prop: "unitCode", label: "单位", width: 90 },
       { prop: "safetyStock", label: "安全库存", width: 110, formatter: formatNumber },
       { prop: "status", label: "状态", width: 100, formatter: formatStatusLabel, tagClass: (row) => getTagClass(row.status) }
@@ -531,7 +569,7 @@ const detailFields = computed(() => {
       { label: "物料编码", value: record.code || "--" },
       { label: "物料名称", value: record.name || "--" },
       { label: "规格", value: record.spec || "--" },
-      { label: "物料类型", value: record.materialType || "--" },
+      { label: "物料类型", value: formatMaterialType(record.materialType) },
       { label: "计量单位", value: record.unitCode || "--" },
       { label: "安全库存", value: formatNumber(record.safetyStock) },
       { label: "默认仓库", value: record.defaultWarehouseName || "--" },
@@ -667,6 +705,7 @@ function createEmptyBomItem() {
 
 function createEmptyRouteItem() {
   return {
+    id: undefined,
     processCode: "",
     processName: "",
     workCenter: "",
@@ -785,6 +824,7 @@ const openEditDialog = async (row) => {
         versionNo: detail.versionNo,
         status: detail.status,
         items: (detail.items || []).map((item) => ({
+          id: item.id,
           processCode: item.processCode || "",
           processName: item.processName || "",
           workCenter: item.workCenter || "",
@@ -882,6 +922,7 @@ const submitForm = async () => {
         versionNo: formModel.versionNo || null,
         status: formModel.status,
         items: formModel.items.map((item) => ({
+          id: item.id || null,
           processCode: item.processCode,
           processName: item.processName,
           workCenter: item.workCenter || null,
@@ -953,6 +994,17 @@ small {
   display: block;
   margin-top: 6px;
   color: var(--text-soft);
+}
+
+.field-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.field-label {
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .detail-panel {
