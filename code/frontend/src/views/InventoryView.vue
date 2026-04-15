@@ -70,12 +70,37 @@
         </el-select>
       </div>
 
-      <el-table v-if="activeTab === 'stocks'" class="management-table" :data="rows" stripe>
+      <el-table v-if="activeTab === 'stocks'" class="management-table" :data="groupedStockRows" stripe row-key="groupKey">
+        <el-table-column type="expand" width="52">
+          <template #default="{ row }">
+            <div class="stock-expand-panel">
+              <el-table class="stock-child-table" :data="row.batchRows" stripe>
+                <el-table-column prop="lotNo" label="批次号" min-width="180">
+                  <template #default="{ row: batchRow }">{{ batchRow.lotNo || "无批次" }}</template>
+                </el-table-column>
+                <el-table-column label="库存数量" min-width="100" align="center">
+                  <template #default="{ row: batchRow }">{{ formatNumber(batchRow.qty) }}</template>
+                </el-table-column>
+                <el-table-column label="锁定数量" min-width="100" align="center">
+                  <template #default="{ row: batchRow }">{{ formatNumber(batchRow.lockedQty) }}</template>
+                </el-table-column>
+                <el-table-column label="可用数量" min-width="100" align="center">
+                  <template #default="{ row: batchRow }">{{ formatNumber(batchRow.availableQty) }}</template>
+                </el-table-column>
+                <el-table-column label="更新时间" min-width="150" align="center">
+                  <template #default="{ row: batchRow }">{{ formatDateTime(batchRow.updatedAt) }}</template>
+                </el-table-column>
+              </el-table>
+            </div>
+          </template>
+        </el-table-column>
         <el-table-column label="库存信息" min-width="240">
           <template #default="{ row }">
             <div class="record-cell">
               <strong class="record-code">{{ row.materialName }}</strong>
-              <span class="record-subtitle">{{ row.materialCode }} / {{ row.lotNo || "无批次" }}</span>
+              <span class="record-subtitle">
+                {{ row.materialCode }} / {{ row.batchCount > 1 ? `${row.batchCount} 个批次` : row.batchRows?.[0]?.lotNo || "无批次" }}
+              </span>
             </div>
           </template>
         </el-table-column>
@@ -451,6 +476,53 @@ const detailTitle = computed(() => `${currentConfig.value.shortTitle}详情`);
 const sourceLinkAction = computed(() =>
   getSourceLinkAction(detailRecord.value?.sourceType, detailRecord.value?.sourceId)
 );
+const groupedStockRows = computed(() => {
+  if (activeTab.value !== "stocks") {
+    return [];
+  }
+
+  const groupMap = new Map();
+  for (const row of rows.value || []) {
+    const key = `${row.warehouseId || row.warehouseName || ""}::${row.materialId || row.materialCode || ""}`;
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        groupKey: key,
+        materialId: row.materialId,
+        materialCode: row.materialCode,
+        materialName: row.materialName,
+        warehouseId: row.warehouseId,
+        warehouseName: row.warehouseName,
+        unitCode: row.unitCode,
+        qty: 0,
+        lockedQty: 0,
+        availableQty: 0,
+        safetyStock: Number(row.safetyStock || 0),
+        stockStatus: row.stockStatus,
+        updatedAt: row.updatedAt,
+        batchCount: 0,
+        batchRows: []
+      });
+    }
+
+    const group = groupMap.get(key);
+    group.qty += Number(row.qty || 0);
+    group.lockedQty += Number(row.lockedQty || 0);
+    group.availableQty += Number(row.availableQty || 0);
+    group.safetyStock = Math.max(group.safetyStock, Number(row.safetyStock || 0));
+    group.stockStatus = Number(group.availableQty) < Number(group.safetyStock) ? "warning" : "normal";
+    group.updatedAt = String(group.updatedAt || "") > String(row.updatedAt || "") ? group.updatedAt : row.updatedAt;
+    group.batchRows.push({
+      lotNo: row.lotNo,
+      qty: row.qty,
+      lockedQty: row.lockedQty,
+      availableQty: row.availableQty,
+      updatedAt: row.updatedAt
+    });
+    group.batchCount = group.batchRows.length;
+  }
+
+  return Array.from(groupMap.values());
+});
 
 function getToday() {
   const current = new Date();
@@ -822,6 +894,16 @@ small {
   display: block;
   margin-top: 6px;
   color: var(--text-soft);
+}
+
+.stock-expand-panel {
+  padding: 8px 12px 16px;
+  background: rgba(248, 250, 252, 0.65);
+}
+
+.stock-child-table :deep(.el-table td),
+.stock-child-table :deep(.el-table th) {
+  padding: 5px 0;
 }
 
 .qty-stack.compact {
