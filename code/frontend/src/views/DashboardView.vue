@@ -2,13 +2,7 @@
   <div class="page-grid dashboard-grid" v-loading="loading">
     <section class="workspace-hero dashboard-hero">
       <div class="workspace-hero-copy">
-        <span class="hero-badge">经营工作台</span>
-        <h2>把经营面板整理成统一的菜单视图</h2>
-        <p>延续登录页的蓝白层次感，把趋势、风险、计划和资金关注拆成可切换模块，不再把图形和结果一次性堆满整个页面。</p>
-        <div class="hero-inline">
-          <span>{{ currentRangeLabel }}</span>
-          <span>工单焦点：{{ workOrderFocusLabel }}</span>
-        </div>
+        <h2>经营看板</h2>
       </div>
 
       <div class="hero-stat-grid">
@@ -23,7 +17,7 @@
       </div>
     </section>
 
-    <PagePanel title="面板菜单" description="按主题切换图形和结果，只保留当前需要看的内容。">
+    <PagePanel title="面板菜单">
       <div class="panel-menu">
         <button
           v-for="item in dashboardSections"
@@ -40,7 +34,7 @@
       </div>
     </PagePanel>
 
-    <PagePanel title="经营筛选" description="首页看板统一联动销售、采购、库存和生产执行摘要。">
+    <PagePanel title="经营筛选">
       <template #actions>
         <div class="toolbar-actions">
           <el-button @click="resetFilters">重置</el-button>
@@ -68,7 +62,6 @@
         </el-select>
         <div class="range-hint">
           <strong>{{ currentRangeLabel }}</strong>
-          <span>按区间汇总经营结果，并联动下方菜单内容</span>
         </div>
       </div>
     </PagePanel>
@@ -1252,49 +1245,16 @@ onMounted(loadData);
 .workspace-hero-copy {
   display: grid;
   align-content: center;
-  gap: 14px;
+  gap: 8px;
 }
 
-.hero-badge {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: rgba(96, 165, 250, 0.16);
-  color: #dbeafe;
-  font-size: 13px;
-}
-
-.workspace-hero-copy h2,
-.workspace-hero-copy p {
+.workspace-hero-copy h2 {
   margin: 0;
 }
 
 .workspace-hero-copy h2 {
   font-size: 34px;
   line-height: 1.25;
-}
-
-.workspace-hero-copy p {
-  color: rgba(224, 231, 255, 0.82);
-  line-height: 1.8;
-}
-
-.hero-inline {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.hero-inline span {
-  display: inline-flex;
-  align-items: center;
-  padding: 9px 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #dbeafe;
-  font-size: 13px;
 }
 
 .hero-stat-grid {

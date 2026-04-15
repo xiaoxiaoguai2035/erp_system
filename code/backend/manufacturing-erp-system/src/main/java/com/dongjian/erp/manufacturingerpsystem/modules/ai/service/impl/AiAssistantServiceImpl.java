@@ -124,11 +124,13 @@ public class AiAssistantServiceImpl implements AiAssistantService {
 
         String prompt = """
                 你是制造企业 ERP 的经营分析助手。
-                请基于以下真实报表快照，输出一段 120 到 180 字的中文经营解读。
+                请基于以下真实报表快照，输出一段简洁的中文经营解读。
                 要求：
-                1. 语言正式、精炼，适合系统页面直接展示
-                2. 先概括经营表现，再指出风险，最后给出执行建议
-                3. 不要分点，不要输出标题，不要编造不存在的数据
+                1. 使用三段短句，并用全角分号“；”连接
+                2. 固定结构为“经营表现：...；核心风险：...；行动建议：...”
+                3. 总长度控制在 90 到 130 字之间
+                4. 语言正式、精炼，适合系统页面直接展示
+                5. 不要编造不存在的数据
 
                 分析期间：%s
                 用户补充问题：%s
@@ -159,7 +161,7 @@ public class AiAssistantServiceImpl implements AiAssistantService {
         String highlightText = highlights.isEmpty() ? "整体经营数据较为平稳" : highlights.get(0);
         String riskText = risks.isEmpty() ? "当前未发现突出的高优先级经营风险" : risks.get(0);
         String suggestionText = suggestions.isEmpty() ? "建议继续保持订单、库存与生产节奏联动" : suggestions.get(0);
-        return "%s内，%s；同时，%s；建议%s。".formatted(periodLabel, highlightText, riskText, suggestionText);
+        return "经营表现：%s内，%s；核心风险：%s；行动建议：%s。".formatted(periodLabel, highlightText, riskText, suggestionText);
     }
 
     private String buildPeriodLabel(LocalDate startDate, LocalDate endDate) {
