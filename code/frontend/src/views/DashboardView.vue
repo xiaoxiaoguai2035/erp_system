@@ -415,6 +415,8 @@ const router = useRouter();
 const loading = ref(false);
 const salesSummary = ref({});
 const purchaseSummary = ref({});
+const salesMonthSummary = ref({});
+const purchaseMonthSummary = ref({});
 const inventorySummary = ref({});
 const productionSummary = ref({});
 const arSummary = ref([]);
@@ -441,6 +443,14 @@ const currentRangeLabel = computed(() => {
   return `${filters.dateRange[0]} 至 ${filters.dateRange[1]}`;
 });
 
+const displaySalesSummary = computed(() =>
+  filters.dateRange?.length ? salesSummary.value : salesMonthSummary.value
+);
+
+const displayPurchaseSummary = computed(() =>
+  filters.dateRange?.length ? purchaseSummary.value : purchaseMonthSummary.value
+);
+
 const workOrderFocusLabel = computed(() => {
   if (filters.workOrderFocus === "all") {
     return "全部工单";
@@ -456,17 +466,17 @@ const workOrderFocusLabel = computed(() => {
 
 const summaryCards = computed(() => [
   {
-    title: salesSummary.value.summaryLabel || "本月销售额",
-    value: formatMoney(salesSummary.value.summaryAmount ?? salesSummary.value.currentMonthSales, "0.00"),
+    title: filters.dateRange?.length ? salesSummary.value.summaryLabel || "本期销售额" : "本月销售额",
+    value: formatMoney(displaySalesSummary.value.summaryAmount ?? displaySalesSummary.value.currentMonthSales, "0.00"),
     unit: "元",
-    trend: `待发货 ${formatNumber(salesSummary.value.pendingShipmentQty, "0")} / 发货率 ${formatPercent(salesSummary.value.shipmentRate)}`,
+    trend: `待发货 ${formatNumber(displaySalesSummary.value.pendingShipmentQty, "0")} / 发货率 ${formatPercent(displaySalesSummary.value.shipmentRate)}`,
     tone: "sunrise"
   },
   {
-    title: purchaseSummary.value.summaryLabel || "本月采购额",
-    value: formatMoney(purchaseSummary.value.summaryAmount ?? purchaseSummary.value.currentMonthPurchase, "0.00"),
+    title: filters.dateRange?.length ? purchaseSummary.value.summaryLabel || "本期采购额" : "本月采购额",
+    value: formatMoney(displayPurchaseSummary.value.summaryAmount ?? displayPurchaseSummary.value.currentMonthPurchase, "0.00"),
     unit: "元",
-    trend: `待到货 ${formatNumber(purchaseSummary.value.pendingReceiveQty, "0")} / 到货率 ${formatPercent(purchaseSummary.value.deliveryRate)}`,
+    trend: `待到货 ${formatNumber(displayPurchaseSummary.value.pendingReceiveQty, "0")} / 到货率 ${formatPercent(displayPurchaseSummary.value.deliveryRate)}`,
     tone: "steel"
   },
   {
@@ -567,8 +577,8 @@ const riskOption = computed(() => ({
         Number(inventorySummary.value.warningCount || 0),
         Number(productionSummary.value.inProgressCount || 0),
         Number(productionSummary.value.delayRiskCount || 0),
-        Number(salesSummary.value.pendingShipmentQty || 0),
-        Number(purchaseSummary.value.pendingReceiveQty || 0)
+        Number(displaySalesSummary.value.pendingShipmentQty || 0),
+        Number(displayPurchaseSummary.value.pendingReceiveQty || 0)
       ],
       itemStyle: {
         color: (params) => ["#f59e0b", "#0f766e", "#4f46e5", "#2563eb", "#06b6d4"][params.dataIndex],
@@ -691,8 +701,8 @@ const topArItem = computed(() => arSummary.value[0] || null);
 const topApItem = computed(() => apSummary.value[0] || null);
 const mrpPurchaseRows = computed(() => (mrpResult.value?.purchaseSuggestions || []).slice(0, 4));
 const mrpWorkOrderRows = computed(() => (mrpResult.value?.workOrderSuggestions || []).slice(0, 4));
-const shipmentRatePercent = computed(() => Number(salesSummary.value.shipmentRate || 0) * 100);
-const deliveryRatePercent = computed(() => Number(purchaseSummary.value.deliveryRate || 0) * 100);
+const shipmentRatePercent = computed(() => Number(displaySalesSummary.value.shipmentRate || 0) * 100);
+const deliveryRatePercent = computed(() => Number(displayPurchaseSummary.value.deliveryRate || 0) * 100);
 const onTimeRatePercent = computed(() => Number(productionSummary.value.onTimeRate || 0) * 100);
 const operationalAlerts = computed(() => [
   {
@@ -701,7 +711,7 @@ const operationalAlerts = computed(() => [
     value: deliveryRatePercent.value < 80 ? formatPercent(deliveryRatePercent.value, 1, "0.0%") : "正常",
     hint:
       deliveryRatePercent.value < 80
-        ? `到货率偏低，待到货 ${formatNumber(purchaseSummary.value.pendingReceiveQty, "0")} 项`
+        ? `到货率偏低，待到货 ${formatNumber(displayPurchaseSummary.value.pendingReceiveQty, "0")} 项`
         : `到货率 ${formatPercent(deliveryRatePercent.value, 1, "0.0%")} ，采购兑现稳定`,
     actionText: "查看采购说明"
   },
@@ -711,7 +721,7 @@ const operationalAlerts = computed(() => [
     value: shipmentRatePercent.value < 80 ? formatPercent(shipmentRatePercent.value, 1, "0.0%") : "正常",
     hint:
       shipmentRatePercent.value < 80
-        ? `发货率偏低，待发货 ${formatNumber(salesSummary.value.pendingShipmentQty, "0")} 项`
+        ? `发货率偏低，待发货 ${formatNumber(displaySalesSummary.value.pendingShipmentQty, "0")} 项`
         : `发货率 ${formatPercent(shipmentRatePercent.value, 1, "0.0%")} ，交付较稳定`,
     actionText: "查看交付说明"
   },
@@ -788,14 +798,29 @@ function buildReportParams() {
   };
 }
 
+function buildCurrentMonthReportParams() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const startDate = `${year}-${`${month + 1}`.padStart(2, "0")}-01`;
+  const endDate = `${year}-${`${month + 1}`.padStart(2, "0")}-${`${new Date(year, month + 1, 0).getDate()}`.padStart(2, "0")}`;
+  return {
+    startDate,
+    endDate
+  };
+}
+
 async function loadData() {
   loading.value = true;
 
   try {
     const reportParams = buildReportParams();
+    const currentMonthParams = buildCurrentMonthReportParams();
     const [
       salesData,
       purchaseData,
+      salesMonthData,
+      purchaseMonthData,
       inventoryData,
       productionData,
       arData,
@@ -808,6 +833,8 @@ async function loadData() {
     ] = await Promise.all([
       fetchSalesSummary(reportParams),
       fetchPurchaseSummary(reportParams),
+      fetchSalesSummary(currentMonthParams),
+      fetchPurchaseSummary(currentMonthParams),
       fetchInventorySummary(reportParams),
       fetchProductionSummary(reportParams),
       fetchArSummary({ ...reportParams, limit: 3 }),
@@ -821,6 +848,8 @@ async function loadData() {
 
     salesSummary.value = salesData || {};
     purchaseSummary.value = purchaseData || {};
+    salesMonthSummary.value = salesMonthData || {};
+    purchaseMonthSummary.value = purchaseMonthData || {};
     inventorySummary.value = inventoryData || {};
     productionSummary.value = productionData || {};
     arSummary.value = arData || [];
@@ -1080,7 +1109,7 @@ function handleRiskChartClick(params) {
   }
 
   const isSales = label === "待发货";
-  const summary = isSales ? salesSummary.value : purchaseSummary.value;
+  const summary = isSales ? displaySalesSummary.value : displayPurchaseSummary.value;
   const focusRow = isSales ? topArItem.value : topApItem.value;
   setDashboardInsight({
     title: `${label}联动详情`,
@@ -1088,7 +1117,7 @@ function handleRiskChartClick(params) {
     metrics: [
       {
         label,
-        value: `${formatNumber(isSales ? salesSummary.value.pendingShipmentQty : purchaseSummary.value.pendingReceiveQty, "0")} 项`,
+        value: `${formatNumber(isSales ? displaySalesSummary.value.pendingShipmentQty : displayPurchaseSummary.value.pendingReceiveQty, "0")} 项`,
         hint: isSales ? "销售待发货数量" : "采购待到货数量"
       },
       {
